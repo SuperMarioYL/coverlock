@@ -1,0 +1,64 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "coverlock"
+version = "0.1.0"
+description = "Lock an account-level cover style-pack and render size-compliant, safe-zone-aware vertical cover sets for Xiaohongshu."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "SuperMarioYL" }]
+keywords = [
+    "xiaohongshu",
+    "cover",
+    "style-pack",
+    "creator-tools",
+    "image-composition",
+    "skill",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "pillow>=10.3,<11",
+    "httpx>=0.27,<0.28",
+    "pyyaml>=6.0,<7",
+    "typer>=0.12,<0.13",
+    # typer 0.12.x targets click <8.2; pin the transitive dep so a clean install
+    # doesn't resolve click 8.2+ (which breaks typer 0.12's parameter parsing).
+    "click>=8.1,<8.2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+
+[project.urls]
+Homepage = "https://github.com/SuperMarioYL/coverlock"
+Repository = "https://github.com/SuperMarioYL/coverlock"
+Issues = "https://github.com/SuperMarioYL/coverlock/issues"
+
+[project.scripts]
+coverlock = "coverlock.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/coverlock"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"assets/rules" = "coverlock/assets/rules"
+"assets/stylepacks" = "coverlock/assets/stylepacks"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# Put src/ on sys.path so the suite collects and runs straight from a clone —
+# no editable install required (works whether or not `pip install -e .` ran).
+pythonpath = ["src"]

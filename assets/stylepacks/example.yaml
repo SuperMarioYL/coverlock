@@ -1,0 +1,45 @@
+# Example account-level style-pack.
+#
+# A style-pack is the CoverLock primitive: a lockable, reusable YAML asset that
+# fixes one account's whole visual language. After `coverlock lock`, `gen` and
+# `regen` read only the locked pack, so every cover across posts converges to
+# the same look. `locked_sha` is written by `coverlock lock` (a sha256 over the
+# fields below) and is absent in an unlocked draft.
+
+id: example
+# locked_sha: <written by `coverlock lock`; absent until locked>
+
+model:
+  # Which domestic image model produces the text-free main visual, plus its
+  # pinned parameters. Kept stable so output does not drift between covers.
+  target: doubao-seedream        # or: qwen-image | mock
+  params:
+    aspect: "4:5"                 # must match one of the platform size names
+    seed_strategy: pinned         # pinned => reproducible main visuals
+    guidance: 6.5
+
+prompt_scaffold:
+  # The cross-post prompt skeleton. The title/topic is the ONLY variable
+  # injected per cover; everything else stays fixed so style is reused.
+  system: "极简杂志风、莫兰迪低饱和、大留白、单一主体居中，画面不含任何文字"
+  per_cover_template: "{topic} 主视觉，{palette_hint}，构图留白居中，不含文字"
+
+# Locked palette. compose.py uses these for title colour and gallery chrome so
+# the whole set reads as one account.
+palette:
+  - "#E8E2D9"
+  - "#3A3A3A"
+  - "#B85C38"
+
+layout:
+  # The title-typesetting contract. Titles are placed ONLY inside the platform
+  # safe-zone; anything that overflows is shrunk/wrapped, never clipped.
+  title_box_ref: safe_zone
+  title_style:
+    size_pt: 88
+    weight: heavy
+    color: "#3A3A3A"
+    align: center-top
+
+# Which platform rule table to load (assets/rules/<platform>.yaml).
+platform: xiaohongshu

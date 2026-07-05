@@ -1,0 +1,54 @@
+name: Demo GIF
+
+# Rendering the demo GIF is expensive, so it is NOT run on every push.
+# Trigger it manually, or on a version tag.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    name: Render docs/demo.tape → assets/demo.gif
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install coverlock
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      # vhs-action's self-install of ffmpeg fails; install the toolchain via apt
+      # first (ffmpeg + ttyd), then let vhs-action just provide the vhs binary.
+      - name: Install ffmpeg + ttyd
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg ttyd
+
+      - name: Render demo.tape
+        uses: charmbracelet/vhs-action@v2
+        with:
+          path: docs/demo.tape
+          install-fonts: true
+
+      - name: Commit the regenerated GIF
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain assets/demo.gif)" ]; then
+            git add assets/demo.gif
+            git commit -m "chore: regenerate demo.gif"
+            git push
+          else
+            echo "demo.gif unchanged; nothing to commit."
+          fi

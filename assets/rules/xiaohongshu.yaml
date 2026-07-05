@@ -1,0 +1,53 @@
+# Xiaohongshu (小红书) vertical-cover platform rules.
+#
+# This file is the SINGLE source of truth for cover geometry. Editing it changes
+# CoverLock's compliance behaviour without touching any Python code — if the
+# platform shifts its cover sizes or safe-zone, only this file changes.
+#
+# Coordinate system: origin (0,0) is the TOP-LEFT of the canvas; +x goes right,
+# +y goes down. All values are integer pixels unless noted.
+#
+# safe_zone is the rectangle the TITLE text must stay fully inside. It is inset
+# from the canvas edges to clear the platform's own overlays (top status bar,
+# bottom action rail, and side gutters). Titles that overflow are shrunk and/or
+# wrapped to fit — never clipped.
+
+platform: xiaohongshu
+display_name: "小红书"
+
+# Which named size a style-pack gets when it does not pin one explicitly.
+default_aspect: "4:5"
+
+# Named cover sizes. `aspect` is the enforced width:height ratio; a rendered
+# cover MUST match one of these exactly to count as size-compliant.
+sizes:
+  "4:5":
+    aspect: "4:5"
+    width: 1080
+    height: 1350
+    # Safe-zone rectangle (x, y, width, height) in canvas pixels.
+    safe_zone:
+      x: 96
+      y: 132
+      width: 888
+      height: 900
+  "3:4":
+    aspect: "3:4"
+    width: 1080
+    height: 1440
+    safe_zone:
+      x: 96
+      y: 140
+      width: 888
+      height: 980
+
+# Title typography defaults. A style-pack's layout may override any of these;
+# values here are the platform-sane fallbacks compose.py starts from.
+title_defaults:
+  max_size_pt: 96
+  min_size_pt: 40
+  line_spacing: 1.12
+  # Padding (px) kept clear inside the safe-zone rectangle so glyphs never kiss
+  # the safe-zone border.
+  inner_padding: 24
+  align: "center-top"
