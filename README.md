@@ -9,7 +9,7 @@
 <p><sub>CoverLock 是给小红书图文创作者的封面套图 Skill：一次锁定账号级 style-pack，之后每帖封面自动继承同一视觉、尺寸永远合规、标题永远落在安全区，还能保留风格只重绘单张。核心自证是一套 locked style-pack 连出 10 张封面的一致性 gallery。</sub></p>
 
 <p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
   <img src="https://img.shields.io/badge/python-3.12-3776AB.svg?logo=python&logoColor=white" alt="Python 3.12">
   <img src="https://img.shields.io/badge/version-0.1.0-5E5CE6.svg" alt="Version 0.1.0">
   <a href="https://github.com/SuperMarioYL/coverlock/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SuperMarioYL/coverlock/ci.yml?label=CI&logo=github" alt="CI"></a>
