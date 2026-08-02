@@ -22,7 +22,8 @@ from typing import Optional, Sequence
 
 from PIL import Image, ImageDraw, ImageFont
 
-from .rules import PlatformRules, SizeSpec, load_platform_rules_cached
+from .rules import PlatformRules, Rect, RuleError, SizeSpec, load_platform_rules_cached
+from .compose import ComposeError, layout_title
 from . import stylepack as _sp
 
 __all__ = [
@@ -56,9 +57,9 @@ class CoverAudit:
     height: int
     size_name: Optional[str]
     size_compliant: bool
-    # Safe-zone compliance is a property of the compose step; a cover produced by
-    # CoverLock is safe-zone-compliant by construction. We re-affirm size here
-    # from pixels and trust the sidecar/compose contract for the title box.
+    # Safe-zone compliance is re-derived in audit_cover from the sidecar title
+    # + the platform rules (re-running layout_title), so the footer reflects
+    # the actual geometry — never a hardcoded pass.
     title_in_safe_zone: bool
 
     @property
@@ -100,11 +101,60 @@ def _matching_size(rules: PlatformRules, width: int, height: int) -> Optional[Si
     return None
 
 
-def audit_cover(path: Path, rules: PlatformRules, title_in_safe_zone: bool = True) -> CoverAudit:
-    """Recompute a cover's compliance from its pixels + the platform rules."""
+def _recompute_safe_zone(
+    rules: PlatformRules,
+    title: Optional[str],
+    size_name: Optional[str],
+    width: int,
+    height: int,
+) -> bool:
+    """Re-derive whether ``title``'s layout fits the safe zone, honestly.
+
+    Mirrors compose.py's geometry: re-run ``layout_title`` for the sidecar
+    title at the sidecar size and test the safe-zone. The verdict is trusted
+    only when the cover on disk IS that named size (a real CoverLock cover);
+    a foreign-sized or sidecar-less cover cannot be proven compliant and
+    reports ``False`` — so the gallery footer can never lie about a set it
+    didn't actually check.
+    """
+    if not title or not size_name:
+        return False
+    try:
+        size = rules.size(size_name)
+    except RuleError:
+        return False
+    # The cover on disk must actually be the named size, else the title the
+    # sidecar describes was never drawn here → cannot be safe-zone-compliant.
+    if (width, height) != (size.width, size.height):
+        return False
+    area = rules.title_area(size)
+    try:
+        layout = layout_title(title, area, defaults=rules.title_defaults)
+    except ComposeError:
+        return False
+    return size.safe_zone.contains(layout.block)
+
+
+def audit_cover(
+    path: Path,
+    rules: PlatformRules,
+    *,
+    title: Optional[str] = None,
+    size_name: Optional[str] = None,
+) -> CoverAudit:
+    """Recompute a cover's compliance from its pixels + the platform rules.
+
+    Size compliance is derived from the cover's pixel dimensions. Safe-zone
+    compliance is re-derived by re-running the title layout for the sidecar
+    title at the sidecar size — but only when the cover on disk actually IS
+    that named size (a real CoverLock cover). A foreign-sized or sidecar-less
+    cover cannot be proven safe-zone-compliant, so it reports ``False``: the
+    footer can never claim a safe-zone pass it did not actually check.
+    """
     with Image.open(path) as im:
         w, h = im.size
     size = _matching_size(rules, w, h)
+    title_in_safe_zone = _recompute_safe_zone(rules, title, size_name, w, h)
     return CoverAudit(
         path=path,
         width=w,
@@ -195,11 +245,17 @@ def build_gallery(
     cover_paths = _discover_covers(covers_dir)[:max_covers]
 
     platform = "xiaohongshu"
-    safe_zone_flags: list[bool] = [True] * len(cover_paths)
-    # Prefer the sidecar (records platform + that gen enforced the safe-zone).
+    titles: Optional[list[str]] = None
+    size_name: Optional[str] = None
+    # Prefer the sidecar (records platform + per-cover titles + the size), so
+    # the safe-zone verdict can be re-derived per cover instead of hardcoded.
     try:
         side = _sp.read_sidecar(covers_dir)
         platform = str(side.get("platform") or platform)
+        side_titles = side.get("titles") or []
+        if side_titles:
+            titles = [str(t) for t in side_titles]
+        size_name = side.get("size_name")
     except _sp.StylePackError:
         side = None
     if pack_path is not None:
@@ -209,8 +265,13 @@ def build_gallery(
 
     rules = load_platform_rules_cached(platform)
     audits = [
-        audit_cover(p, rules, title_in_safe_zone=flag)
-        for p, flag in zip(cover_paths, safe_zone_flags)
+        audit_cover(
+            p,
+            rules,
+            title=titles[i] if titles and i < len(titles) else None,
+            size_name=size_name,
+        )
+        for i, p in enumerate(cover_paths)
     ]
 
     report_image = _compose_grid(cover_paths, audits, thumb_width=thumb_width)

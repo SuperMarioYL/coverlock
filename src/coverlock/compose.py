@@ -297,7 +297,10 @@ def layout_title(
             return TitleLayout(lines=list(lines), font_size=size, line_spacing=ls, block=block, color=color)
         # Track the smallest attempt in case nothing fits (degenerate box).
         if size == lo:
-            block = _placed_block(lines, min(block_w, area.width), min(block_h, area.height), area, defaults.align)
+            # Report the REAL (un-clamped) block so the safe-zone verdict is
+            # honest: an overflowing title is reported at its true size and
+            # fails safe_zone.contains, matching what _draw_title renders.
+            block = _position_block(block_w, block_h, area, defaults.align)
             best = TitleLayout(lines=list(lines), font_size=size, line_spacing=ls, block=block, color=color)
 
     if best is not None:
@@ -306,14 +309,20 @@ def layout_title(
     font = _load_font(font_path, lo)
     lines, _ = _wrap_to_width(probe, title, font, area.width)
     block_w, block_h = _block_size(probe, lines, font, ls)
-    block = _placed_block(lines, min(block_w, area.width), min(block_h, area.height), area, defaults.align)
+    # Same honesty rule as the degenerate branch: report the real block, not a
+    # clamped one, so title_in_safe_zone reflects the actual drawn extent.
+    block = _position_block(block_w, block_h, area, defaults.align)
     return TitleLayout(lines=list(lines), font_size=lo, line_spacing=ls, block=block, color=color)
 
 
-def _placed_block(lines: Sequence[str], block_w: int, block_h: int, area: Rect, align: str) -> Rect:
-    """Position the title block inside ``area`` per the alignment string."""
-    block_w = min(block_w, area.width)
-    block_h = min(block_h, area.height)
+def _position_block(block_w: int, block_h: int, area: Rect, align: str) -> Rect:
+    """Position a block of the given size inside ``area`` per the alignment
+    string, WITHOUT clamping to the area.
+
+    The reported block must match what :func:`_draw_title` actually renders, so
+    an overflowing title is reported at its real size — the safe-zone verdict
+    then reflects reality (an honest ``False``) instead of a clamped lie.
+    """
     # Horizontal: centre for any "center*" alignment, else left.
     if "center" in align or "centre" in align:
         x = area.x + (area.width - block_w) // 2
@@ -329,6 +338,19 @@ def _placed_block(lines: Sequence[str], block_w: int, block_h: int, area: Rect, 
     else:
         y = area.y + (area.height - block_h) // 2
     return Rect(int(x), int(y), int(max(1, block_w)), int(max(1, block_h)))
+
+
+def _placed_block(lines: Sequence[str], block_w: int, block_h: int, area: Rect, align: str) -> Rect:
+    """Position the title block inside ``area`` per the alignment string.
+
+    Clamps width/height to the area — a no-op on the normal path (where the
+    block already fits) so the block stays on-canvas. The degenerate/last-resort
+    fallbacks must NOT use this; they use :func:`_position_block` so the reported
+    block matches the real drawn extent.
+    """
+    block_w = min(block_w, area.width)
+    block_h = min(block_h, area.height)
+    return _position_block(block_w, block_h, area, align)
 
 
 def _draw_title(img: Image.Image, layout: TitleLayout, font_path: str | None) -> None:

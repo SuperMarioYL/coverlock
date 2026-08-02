@@ -150,4 +150,4 @@ CoverLock 本体是 **OSS + 自带 key，永久免费**——把工具本身开�
 
 自动发帖 / 发布到任何平台 · 抓取小红书或他人内容 · 投流 / 涨粉 / 流量运营 · 多平台聚合分发 · 训练 / 微调图像模型 · 视频封面。CoverLock 只处理你自己的封面文件。
 
-<p align="center"><sub><a href="./LICENSE">MIT</a> © 2026 SuperMarioYL</sub></p>
+<p align="center"><sub><a href="./LICENSE">Apache-2.0</a> © 2026 SuperMarioYL</sub></p>

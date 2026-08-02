@@ -9,7 +9,7 @@
 <p><sub>CoverLock is a cover-set Skill for Xiaohongshu (小红书) creators: lock an account-level style-pack once, and every subsequent cover inherits the same look, is always size-compliant, and always keeps its title inside the safe-zone — you can even redraw a single cover while keeping the whole style. The killer self-proof is a consistency gallery of 10 covers from one locked style-pack.</sub></p>
 
 <p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
   <img src="https://img.shields.io/badge/python-3.12-3776AB.svg?logo=python&logoColor=white" alt="Python 3.12">
   <img src="https://img.shields.io/badge/version-0.1.0-5E5CE6.svg" alt="Version 0.1.0">
   <a href="https://github.com/SuperMarioYL/coverlock/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SuperMarioYL/coverlock/ci.yml?label=CI&logo=github" alt="CI"></a>
@@ -151,4 +151,4 @@ A **hosted layer** for Xiaohongshu agencies / MCNs (planned, v0.2+): they manage
 
 Auto-posting / publishing to any platform · scraping Xiaohongshu or others' content · ad-buying / follower-growth / traffic ops · multi-platform aggregation · training / fine-tuning image models · video covers. CoverLock only touches your own cover files.
 
-<p align="center"><sub><a href="./LICENSE">MIT</a> © 2026 SuperMarioYL</sub></p>
+<p align="center"><sub><a href="./LICENSE">Apache-2.0</a> © 2026 SuperMarioYL</sub></p>
