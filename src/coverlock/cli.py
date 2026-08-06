@@ -152,16 +152,23 @@ def _gen_from_pack(
     except stylepack.StylePackError as exc:
         raise typer.BadParameter(str(exc))
 
-    if model:
-        # Allow overriding the pack's model on the CLI (e.g. --model mock offline).
-        # The override is in-memory only; the on-disk lock is unaffected.
-        sp = stylepack.with_model_override(sp, model)
-
-    if require_lock and not model:
+    # Verify the ORIGINAL pack's lock BEFORE applying any --model override, so
+    # a pack tampered after lock (palette/layout/scaffold/platform edited
+    # without re-locking) is still detected even when --model is passed. The
+    # guard used to be `if require_lock and not model:`, which exempted lock
+    # verification entirely whenever --model was supplied — but the override is
+    # in-memory only and legitimately diverges from the sha; the original pack's
+    # OTHER locked fields must still be checked. This completes the m2 guarantee.
+    if require_lock:
         try:
             stylepack.verify_lock(sp)
         except stylepack.LockError as exc:
             raise typer.BadParameter(str(exc))
+
+    if model:
+        # Allow overriding the pack's model on the CLI (e.g. --model mock offline).
+        # The override is in-memory only; the on-disk lock is unaffected.
+        sp = stylepack.with_model_override(sp, model)
 
     rules = load_platform_rules_cached(sp.platform)
     size_spec = rules.size(size)
@@ -173,6 +180,7 @@ def _gen_from_pack(
 
     out.mkdir(parents=True, exist_ok=True)
     size_ok = zone_ok = 0
+    compliance: list = []
     for i, title in enumerate(title_list, start=1):
         try:
             cover = stylepack.render_cover(sp, title, i, rules, size_name=size_spec.name)
@@ -181,12 +189,16 @@ def _gen_from_pack(
         dest = out / f"cover_{i:02d}.png"
         cover.save(dest)
         rep = cover.report
+        compliance.append(stylepack.report_to_compliance(rep))
         size_ok += int(rep.size_compliant)
         zone_ok += int(rep.title_in_safe_zone)
         _echo_cover_line(dest, rep)
 
-    # Persist the sidecar so `regen` / `gallery` can reconstruct this exact set.
-    stylepack.write_sidecar(out, sp, list(title_list), size_spec.name)
+    # Persist the sidecar so `regen` / `gallery` can reconstruct this exact set,
+    # including each cover's compose-time safe-zone verdict (the gallery reads it
+    # verbatim rather than re-deriving with the platform default font, which
+    # diverges from the pack's locked title typography).
+    stylepack.write_sidecar(out, sp, list(title_list), size_spec.name, compliance=compliance)
 
     n = len(title_list)
     typer.echo(f"done · size-compliant {size_ok}/{n} · titles-in-safe-zone {zone_ok}/{n} · out={out}")

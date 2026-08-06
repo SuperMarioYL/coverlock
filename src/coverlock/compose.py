@@ -264,8 +264,10 @@ def layout_title(
 
     Shrinks from ``max_size_pt`` down to ``min_size_pt`` (px), wrapping at each
     step, and returns the first layout whose block fits ``area`` in both axes and
-    within ``max_lines``. Never clips: if nothing fits even at ``min_size_pt`` the
-    smallest wrapping is returned (still inside the box on width by construction).
+    within ``max_lines``. Never clips and never returns more than ``max_lines``
+    lines: if nothing fits even at ``min_size_pt`` the smallest wrapping is
+    truncated to ``max_lines`` lines (still inside the box on width by
+    construction) so the caller's cap is always honoured.
 
     Raises:
         ComposeError: if ``title`` is empty or ``area`` is degenerate.
@@ -306,8 +308,16 @@ def layout_title(
     if best is not None:
         return best
     # Last resort: smallest font, single greedy wrap (guaranteed width-fit).
+    # A title that cannot fit in ``max_lines`` at any size is still capped to
+    # ``max_lines`` lines here — never return an unbounded line count, otherwise
+    # the caller's max_lines contract is silently bypassed and the cover is
+    # drawn with far more lines than requested. Recompute the block honestly
+    # from the (possibly truncated) lines so the safe-zone verdict reflects what
+    # _draw_title will actually render.
     font = _load_font(font_path, lo)
     lines, _ = _wrap_to_width(probe, title, font, area.width)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
     block_w, block_h = _block_size(probe, lines, font, ls)
     # Same honesty rule as the degenerate branch: report the real block, not a
     # clamped one, so title_in_safe_zone reflects the actual drawn extent.

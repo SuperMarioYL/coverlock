@@ -57,9 +57,14 @@ class CoverAudit:
     height: int
     size_name: Optional[str]
     size_compliant: bool
-    # Safe-zone compliance is re-derived in audit_cover from the sidecar title
-    # + the platform rules (re-running layout_title), so the footer reflects
-    # the actual geometry — never a hardcoded pass.
+    # Safe-zone compliance is taken VERBATIM from the compose-time verdict
+    # persisted in the .coverlock_titles.json sidecar (each cover's
+    # ComplianceReport.title_in_safe_zone), so the footer can never diverge from
+    # what compose_cover actually drew — a re-derivation with the platform DEFAULT
+    # font would lie True for any pack that sets layout.title_font (a real CJK font
+    # renders glyphs ~2x wider than the bundled default, so the re-derived block
+    # is shorter and reports in-safe-zone for a cover whose real block overflows).
+    # Legacy/foreign covers without a persisted verdict fall back to re-derivation.
     title_in_safe_zone: bool
 
     @property
@@ -114,8 +119,13 @@ def _recompute_safe_zone(
     title at the sidecar size and test the safe-zone. The verdict is trusted
     only when the cover on disk IS that named size (a real CoverLock cover);
     a foreign-sized or sidecar-less cover cannot be proven compliant and
-    reports ``False`` — so the gallery footer can never lie about a set it
-    didn't actually check.
+    reports ``False``. This is the FALLBACK path used only when no compose-time
+    verdict was persisted in the sidecar (legacy sets / foreign covers); the
+    preferred path reads the persisted verdict verbatim so the gallery can never
+    diverge from the pack's locked title typography (see :func:`audit_cover`).
+    Note: this fallback re-derives with the platform DEFAULT font, so for a pack
+    that sets layout.title_font it can under-report overflow — which is exactly
+    why audit_cover prefers the persisted verdict.
     """
     if not title or not size_name:
         return False
@@ -141,20 +151,27 @@ def audit_cover(
     *,
     title: Optional[str] = None,
     size_name: Optional[str] = None,
+    safe_zone_verdict: Optional[bool] = None,
 ) -> CoverAudit:
     """Recompute a cover's compliance from its pixels + the platform rules.
 
     Size compliance is derived from the cover's pixel dimensions. Safe-zone
-    compliance is re-derived by re-running the title layout for the sidecar
-    title at the sidecar size — but only when the cover on disk actually IS
-    that named size (a real CoverLock cover). A foreign-sized or sidecar-less
-    cover cannot be proven safe-zone-compliant, so it reports ``False``: the
-    footer can never claim a safe-zone pass it did not actually check.
+    compliance is taken VERBATIM from ``safe_zone_verdict`` (the compose-time
+    ComplianceReport.title_in_safe_zone persisted in the sidecar by gen/regen)
+    when one is supplied — so the footer can never lie by re-deriving the title
+    block with the platform default font, which diverges from the pack's locked
+    title typography that compose_cover actually drew. When no persisted verdict
+    is available (a legacy sidecar without compliance, or a foreign cover), it
+    falls back to re-deriving the layout from the sidecar title — but only when
+    the cover on disk actually IS that named size; otherwise it reports ``False``.
     """
     with Image.open(path) as im:
         w, h = im.size
     size = _matching_size(rules, w, h)
-    title_in_safe_zone = _recompute_safe_zone(rules, title, size_name, w, h)
+    if safe_zone_verdict is not None:
+        title_in_safe_zone = bool(safe_zone_verdict)
+    else:
+        title_in_safe_zone = _recompute_safe_zone(rules, title, size_name, w, h)
     return CoverAudit(
         path=path,
         width=w,
@@ -247,8 +264,10 @@ def build_gallery(
     platform = "xiaohongshu"
     titles: Optional[list[str]] = None
     size_name: Optional[str] = None
-    # Prefer the sidecar (records platform + per-cover titles + the size), so
-    # the safe-zone verdict can be re-derived per cover instead of hardcoded.
+    side_compliance: list = []
+    # Prefer the sidecar (records platform + per-cover titles + the size + each
+    # cover's compose-time safe-zone verdict), so the safe-zone count reflects
+    # what compose_cover actually drew instead of a default-font re-derivation.
     try:
         side = _sp.read_sidecar(covers_dir)
         platform = str(side.get("platform") or platform)
@@ -256,6 +275,7 @@ def build_gallery(
         if side_titles:
             titles = [str(t) for t in side_titles]
         size_name = side.get("size_name")
+        side_compliance = side.get("compliance") or []
     except _sp.StylePackError:
         side = None
     if pack_path is not None:
@@ -270,6 +290,15 @@ def build_gallery(
             rules,
             title=titles[i] if titles and i < len(titles) else None,
             size_name=size_name,
+            # Read each cover's safe-zone verdict verbatim from the sidecar;
+            # absent/legacy entries fall back to re-derivation inside audit_cover.
+            safe_zone_verdict=(
+                side_compliance[i]["title_in_safe_zone"]
+                if i < len(side_compliance)
+                and isinstance(side_compliance[i], dict)
+                and "title_in_safe_zone" in side_compliance[i]
+                else None
+            ),
         )
         for i, p in enumerate(cover_paths)
     ]

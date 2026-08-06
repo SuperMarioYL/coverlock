@@ -177,6 +177,32 @@ def test_layout_title_empty_rejected(rules):
         layout_title("   ", area, defaults=rules.title_defaults)
 
 
+def test_layout_title_last_resort_respects_max_lines(rules):
+    """The last-resort fallback caps wrapped lines to max_lines.
+
+    Regression for fix-layout-title-fallback-bypasses-max-lines: when EVERY font
+    size from max_size_pt down to min_size_pt wraps a title to more than
+    max_lines, layout_title's normal loop never sets `best` and execution fell
+    through to the last-resort block, which re-ran _wrap_to_width at min_size_pt
+    and returned whatever line count resulted — with NO max_lines cap. A long
+    CJK title with max_lines=4 was therefore returned with 15 lines (and the
+    cover drawn with 15 lines while the caller asked for max_lines=4). The fix
+    truncates the last-resort wrap to max_lines and recomputes the block
+    honestly, so the returned line_count never exceeds the caller's cap.
+    """
+    size = rules.size("4:5")
+    area = rules.title_area(size)
+    # 600 CJK chars wrap to ~15 lines at min_size_pt with the bundled default
+    # font — well past max_lines=4 at every size, so the normal loop is skipped
+    # and the last-resort path is taken.
+    long_cjk = "标" * 600
+    layout = layout_title(long_cjk, area, defaults=rules.title_defaults, max_lines=4)
+    assert len(layout.lines) <= 4
+    # The fallback uses the smallest font and reports the real (truncated) block.
+    assert layout.font_size == rules.title_defaults.min_size_pt
+    assert len(layout.lines) == 4
+
+
 def test_compose_accepts_pil_image(rules):
     size = rules.size("4:5")
     src = Image.new("RGB", (500, 500), (220, 210, 200))

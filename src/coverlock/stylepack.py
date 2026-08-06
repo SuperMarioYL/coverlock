@@ -54,6 +54,7 @@ __all__ = [
     "with_model_override",
     "write_sidecar",
     "read_sidecar",
+    "report_to_compliance",
     "example_pack_path",
     "canonical_bytes",
     "compute_sha",
@@ -490,13 +491,15 @@ def render_set(
     out.mkdir(parents=True, exist_ok=True)
 
     written: list[Path] = []
+    compliance: list[dict[str, Any]] = []
     for i, title in enumerate(titles, start=1):
         cover = render_cover(pack, title, i, rules, size_name=size.name)
         dest = out / f"cover_{i:02d}.png"
         cover.save(dest)
         written.append(dest)
+        compliance.append(report_to_compliance(cover.report))
 
-    _write_sidecar(out, pack, list(titles), size.name)
+    _write_sidecar(out, pack, list(titles), size.name, compliance=compliance)
     return written
 
 
@@ -504,7 +507,31 @@ def _sidecar_path(out_dir: str | Path) -> Path:
     return Path(out_dir) / TITLES_FILENAME
 
 
-def _write_sidecar(out_dir: Path, pack: StylePack, titles: list[str], size_name: str) -> None:
+def report_to_compliance(report: Any) -> "dict[str, Any]":
+    """Project a :class:`~coverlock.compose.ComplianceReport` into the sidecar.
+
+    Persists the compose-time safe-zone verdict + the real title bbox verbatim,
+    so ``gallery.audit_cover`` can read them back instead of re-deriving the
+    title block with the platform DEFAULT font (which diverges from the pack's
+    locked title_font / align / size_pt that ``compose_cover`` actually drew —
+    a divergence that let the footer claim title_in_safe_zone=True for a cover
+    whose real pack-font block overflowed). Reading the verdict verbatim means
+    the gallery can never report a safe-zone pass it did not actually check.
+    """
+    return {
+        "title_in_safe_zone": bool(report.title_in_safe_zone),
+        "title_bbox": [int(v) for v in report.title_bbox],
+    }
+
+
+def _write_sidecar(
+    out_dir: Path,
+    pack: StylePack,
+    titles: list[str],
+    size_name: str,
+    *,
+    compliance: "list[dict[str, Any] | None] | None" = None,
+) -> None:
     payload = {
         "pack_id": pack.id,
         "pack_path": str(pack.source_path) if pack.source_path else None,
@@ -513,14 +540,27 @@ def _write_sidecar(out_dir: Path, pack: StylePack, titles: list[str], size_name:
         "size_name": size_name,
         "titles": titles,
     }
+    if compliance is not None:
+        payload["compliance"] = compliance
     _sidecar_path(out_dir).write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
 
-def write_sidecar(out_dir: str | Path, pack: StylePack, titles: Sequence[str], size_name: str) -> None:
-    """Public wrapper: record the cover-set sidecar (pack id, size, per-cover titles)."""
-    _write_sidecar(Path(out_dir), pack, list(titles), size_name)
+def write_sidecar(
+    out_dir: str | Path,
+    pack: StylePack,
+    titles: Sequence[str],
+    size_name: str,
+    *,
+    compliance: "Sequence[dict[str, Any] | None] | None" = None,
+) -> None:
+    """Public wrapper: record the cover-set sidecar (pack id, size, per-cover
+    titles, and per-cover compose-time compliance verdicts)."""
+    _write_sidecar(
+        Path(out_dir), pack, list(titles), size_name,
+        compliance=list(compliance) if compliance is not None else None,
+    )
 
 
 def read_sidecar(out_dir: str | Path) -> "dict[str, Any]":
@@ -583,7 +623,17 @@ def regen_one(
 
     # Update just this title in the sidecar; leave every other cover file alone.
     titles[index - 1] = title
-    _write_sidecar(out, pack, titles, resolved_size or rules.default_aspect)
+    # Refresh this cover's persisted compose-time safe-zone verdict too, so the
+    # gallery footer for the set still reflects the real (re)drawn block — a
+    # regen with a new title may flip the verdict, and the sidecar is the gallery's
+    # source of truth (it must not re-derive with the platform default font).
+    existing_compliance: list[Any] = list(side.get("compliance") or [])
+    if len(existing_compliance) < len(titles):
+        existing_compliance += [None] * (len(titles) - len(existing_compliance))
+    elif len(existing_compliance) > len(titles):
+        existing_compliance = existing_compliance[: len(titles)]
+    existing_compliance[index - 1] = report_to_compliance(cover.report)
+    _write_sidecar(out, pack, titles, resolved_size or rules.default_aspect, compliance=existing_compliance)
     return dest
 
 
