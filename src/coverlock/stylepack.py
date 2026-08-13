@@ -567,7 +567,17 @@ def read_sidecar(out_dir: str | Path) -> "dict[str, Any]":
     """Read the cover-set sidecar written by :func:`render_set`.
 
     Raises:
-        StylePackError: if no sidecar exists (the set was never generated here).
+        StylePackError: if no sidecar exists (the set was never generated here),
+            or if the sidecar is truncated / malformed (e.g. an interrupted
+            ``gen``/``regen`` write). A corrupt ``.coverlock_titles.json`` makes
+            ``json.loads`` raise ``json.JSONDecodeError`` (a ``ValueError``) —
+            NOT a ``StylePackError`` — so without this guard ``gallery`` would
+            crash with a raw traceback instead of falling back to the no-sidecar
+            path, and ``regen`` would surface a ``JSONDecodeError`` instead of a
+            clean ``BadParameter``. Wrapping the parse and raising
+            ``StylePackError`` lets the existing handlers treat a corrupt
+            sidecar as missing/invalid (gallery falls back to re-derivation,
+            regen surfaces a clean error).
     """
     sp = _sidecar_path(out_dir)
     if not sp.is_file():
@@ -575,7 +585,17 @@ def read_sidecar(out_dir: str | Path) -> "dict[str, Any]":
             f"no cover set found in {out_dir} (missing {TITLES_FILENAME}); "
             f"run `coverlock gen` first"
         )
-    return json.loads(sp.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(sp.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise StylePackError(
+            f"cover set sidecar {sp} is malformed and could not be parsed: {exc}; "
+            f"it may have been truncated by an interrupted gen/regen — "
+            f"run `coverlock gen` to regenerate it"
+        ) from exc
+    if not isinstance(data, dict):
+        raise StylePackError(f"cover set sidecar {sp} is not a JSON object")
+    return data
 
 
 # --------------------------------------------------------------------------- #

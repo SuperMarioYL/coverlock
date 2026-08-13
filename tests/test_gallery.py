@@ -290,3 +290,73 @@ def test_gallery_safe_zone_honors_pack_font_verdict(tmp_path):
     # The other covers (genuinely compliant) are still reported True.
     assert report.audits[1].title_in_safe_zone is True
     assert report.audits[2].title_in_safe_zone is True
+
+
+# --------------------------------------------------------------------------- #
+# gallery sidecar indexed by cover number, not list position (v0.4.0)
+# --------------------------------------------------------------------------- #
+def test_gallery_sidecar_indexed_by_cover_number_not_position(rendered_set):
+    """Regression for fix-gallery-sidecar-position-index-misalign.
+
+    ``build_gallery`` used to index the sidecar's ``titles`` / ``compliance``
+    lists by POSITION in the sorted ``cover_*.png`` file list. If a middle cover
+    (e.g. cover_03.png) was deleted before ``gallery`` ran, every later cover
+    shifted left one slot and inherited the previous cover's title + persisted
+    safe-zone verdict — so the footer self-proof lied (a deleted cover_03 with a
+    planted ``title_in_safe_zone=False`` made cover_04 report False too).
+
+    The fix indexes by the cover NUMBER encoded in the filename (cover_03.png ->
+    3), so a surviving cover keeps its own sidecar entry. Here we plant a False
+    verdict for cover_03, delete cover_03.png, and assert cover_04 still reports
+    its own (true) verdict and the footer stays all-true for the surviving set.
+    """
+    import json
+
+    out = rendered_set["out"]
+    side_path = out / sp.TITLES_FILENAME
+    side = json.loads(side_path.read_text(encoding="utf-8"))
+
+    # The set is genuinely 10/10 compliant; plant a False verdict for cover_03
+    # only to make the position-vs-number misalignment observable.
+    assert len(side["compliance"]) == 10
+    side["compliance"][2] = {  # cover_03's slot (0-based index 2)
+        "title_in_safe_zone": False,
+        "title_bbox": [96, 132, 888, 999],
+    }
+    side_path.write_text(json.dumps(side, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # Delete the middle cover so the sorted file list shifts left by one.
+    (out / "cover_03.png").unlink()
+
+    report = build_gallery(pack_path=rendered_set["pack_path"], covers_dir=out)
+    # 9 covers survive on disk.
+    assert report.total == 9
+    # cover_04.png is now the 3rd file in the sorted list; it must NOT inherit
+    # cover_03's planted False — it keeps its own True verdict.
+    cover_04 = next(a for a in report.audits if a.path.name == "cover_04.png")
+    assert cover_04.title_in_safe_zone is True
+    # The deleted cover_03's planted False must not bleed into the count.
+    assert report.safe_zone_count == report.total
+    assert report.all_compliant is True
+
+
+def test_gallery_degrades_on_malformed_sidecar(rendered_set):
+    """Regression for fix-read-sidecar-json-crash (gallery path).
+
+    A corrupt ``.coverlock_titles.json`` used to make ``build_gallery`` crash
+    with a raw ``JSONDecodeError`` — ``read_sidecar``'s ``ValueError`` escaped
+    the ``except StylePackError`` (gallery.py). Now ``read_sidecar`` raises
+    ``StylePackError`` on a malformed sidecar, ``build_gallery`` catches it and
+    falls back to the no-sidecar path, so ``gallery`` still produces a report
+    instead of a traceback. The size axis is recomputed from pixels regardless;
+    only the (unprovable without a sidecar) safe-zone verdicts degrade honestly.
+    """
+    out = rendered_set["out"]
+    # Truncate the sidecar (simulate an interrupted gen/regen write).
+    (out / sp.TITLES_FILENAME).write_text('{"titles": ["a"', encoding="utf-8")
+
+    # Must NOT raise — falls back to the no-sidecar re-derivation path.
+    report = build_gallery(pack_path=rendered_set["pack_path"], covers_dir=out)
+    assert isinstance(report, gal.GalleryReport)
+    assert report.total == 10  # covers are still on disk
+    assert report.size_compliant_count == 10  # size axis recomputed from pixels

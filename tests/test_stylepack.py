@@ -299,6 +299,61 @@ def test_regen_rejects_out_of_range_index(tmp_path):
         regen_one(path, index=9, title="x", out_dir=out)
 
 
+# --------------------------------------------------------------------------- #
+# read_sidecar degrades on a corrupt sidecar instead of crashing (v0.4.0)
+# --------------------------------------------------------------------------- #
+def test_read_sidecar_malformed_json_raises_stylepackerror(tmp_path):
+    """Regression for fix-read-sidecar-json-crash.
+
+    A truncated / malformed ``.coverlock_titles.json`` (e.g. an interrupted
+    gen/regen write) must surface as a ``StylePackError`` — NOT a raw
+    ``json.JSONDecodeError`` (a ``ValueError`` that the gallery/regen handlers
+    don't catch, so they used to crash with a traceback instead of degrading
+    gracefully). ``read_sidecar`` now wraps ``json.loads`` and raises
+    ``StylePackError`` on ``(json.JSONDecodeError, ValueError)``.
+    """
+    import json
+
+    out = tmp_path / "out"
+    out.mkdir()
+    # A truncated JSON document (the kind an interrupted write leaves behind).
+    (out / sp.TITLES_FILENAME).write_text('{"titles": ["a", "b"', encoding="utf-8")
+
+    with pytest.raises(StylePackError) as excinfo:
+        sp.read_sidecar(out)
+    # The original JSON parse failure is chained as the cause, not leaked.
+    assert isinstance(excinfo.value.__cause__, json.JSONDecodeError)
+
+
+def test_read_sidecar_non_object_json_raises_stylepackerror(tmp_path):
+    """A sidecar that parses to a JSON non-object (e.g. a bare list) is invalid."""
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / sp.TITLES_FILENAME).write_text('["not", "an", "object"]', encoding="utf-8")
+    with pytest.raises(StylePackError):
+        sp.read_sidecar(out)
+
+
+def test_regen_raises_stylepackerror_on_malformed_sidecar(tmp_path):
+    """Regression for fix-read-sidecar-json-crash (regen path).
+
+    A corrupt sidecar must make ``regen_one`` surface a clean ``StylePackError``
+    (which the CLI turns into a ``BadParameter``) instead of crashing with a
+    raw ``JSONDecodeError``.
+    """
+    import json
+
+    path = _mock_locked_pack(tmp_path)
+    pack = load_pack(path)
+    out = tmp_path / "out"
+    render_set(pack, ["一", "二", "三"], out)
+    # Corrupt the sidecar (simulate an interrupted regen write).
+    (out / sp.TITLES_FILENAME).write_text('{"titles":', encoding="utf-8")
+    with pytest.raises(StylePackError) as excinfo:
+        regen_one(path, index=2, title="新标题", out_dir=out)
+    assert isinstance(excinfo.value.__cause__, json.JSONDecodeError)
+
+
 def test_regen_requires_locked_pack(tmp_path):
     path = init_pack("nolock", out_dir=tmp_path)
     data = yaml.safe_load(path.read_text(encoding="utf-8"))

@@ -16,9 +16,10 @@ can never lie about a set it didn't actually check.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -191,6 +192,53 @@ def _discover_covers(covers_dir: Path) -> list[Path]:
     return covers
 
 
+# The cover number encoded in the filename (cover_03.png -> 3). The sidecar's
+# `titles` and `compliance` lists are written keyed by this NUMBER (titles[i-1]
+# is the title for cover_{i:02d}.png), so a surviving cover keeps its own entry
+# even when a middle cover was deleted and the on-disk file list shifted left.
+_COVER_NUM_RE = re.compile(r"cover_(\d+)\.png$")
+
+
+def _cover_number(path: Path) -> Optional[int]:
+    """Parse the 1-based cover index encoded in a cover filename.
+
+    ``cover_03.png`` -> 3. Returns ``None`` when the file doesn't follow the
+    ``cover_NN.png`` naming (a manually dropped foreign image), so the caller's
+    out-of-range guard routes it to the no-sidecar fallback path.
+    """
+    m = _COVER_NUM_RE.match(path.name)
+    return int(m.group(1)) if m else None
+
+
+def _sidecar_entry(
+    seq: Optional[Sequence[Any]], cover_num: Optional[int]
+) -> Optional[Any]:
+    """Look up a sidecar list (titles / compliance) by 1-based cover NUMBER.
+
+    Indexing by cover number — NOT by position in the sorted file list — means a
+    deleted middle cover no longer makes every later cover shift left one slot
+    and inherit the previous cover's title / persisted safe-zone verdict. Returns
+    ``None`` for an out-of-range or unparsable index (legacy / foreign covers),
+    which routes :func:`audit_cover` to its re-derivation fallback.
+    """
+    if not seq or cover_num is None:
+        return None
+    idx = cover_num - 1
+    if 0 <= idx < len(seq):
+        return seq[idx]
+    return None
+
+
+def _sidecar_verdict(
+    compliance: Optional[Sequence[Any]], cover_num: Optional[int]
+) -> Optional[bool]:
+    """Read a cover's persisted safe-zone verdict from the sidecar by cover number."""
+    entry = _sidecar_entry(compliance, cover_num)
+    if isinstance(entry, dict) and "title_in_safe_zone" in entry:
+        return bool(entry["title_in_safe_zone"])
+    return None
+
+
 def _grid_shape(n: int) -> tuple[int, int]:
     """Choose (rows, cols) for ``n`` covers, favouring a 5-wide sheet for 10."""
     if n <= 0:
@@ -288,19 +336,16 @@ def build_gallery(
         audit_cover(
             p,
             rules,
-            title=titles[i] if titles and i < len(titles) else None,
+            # Index the sidecar by the cover NUMBER encoded in the filename
+            # (cover_03.png -> 3), not by position in the sorted file list, so a
+            # deleted middle cover stops making every later cover inherit the
+            # previous cover's title + persisted safe-zone verdict. Out-of-range
+            # / unparsable numbers fall back to re-derivation inside audit_cover.
+            title=_sidecar_entry(titles, _cover_number(p)),
             size_name=size_name,
-            # Read each cover's safe-zone verdict verbatim from the sidecar;
-            # absent/legacy entries fall back to re-derivation inside audit_cover.
-            safe_zone_verdict=(
-                side_compliance[i]["title_in_safe_zone"]
-                if i < len(side_compliance)
-                and isinstance(side_compliance[i], dict)
-                and "title_in_safe_zone" in side_compliance[i]
-                else None
-            ),
+            safe_zone_verdict=_sidecar_verdict(side_compliance, _cover_number(p)),
         )
-        for i, p in enumerate(cover_paths)
+        for p in cover_paths
     ]
 
     report_image = _compose_grid(cover_paths, audits, thumb_width=thumb_width)
