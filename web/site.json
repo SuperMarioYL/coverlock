@@ -5,8 +5,8 @@
   "host": "coverlock.lei6393.com",
   "lang": { "primary": "zh", "toggle": true },
   "accent": ["#FF4365", "#FF7A45", "#FFB347"],
-  "content_version": "v0.4.0",
-  "generated_at": "2026-08-06T21:41:49Z",
+  "content_version": "v0.5.0",
+  "generated_at": "2026-08-28T04:38:14Z",
   "hero": {
     "eyebrow": {
       "zh": "账号级风格锁定 · 尺寸合规 · 标题不越界",
@@ -57,7 +57,7 @@
         "zh": "标题只排进规则定义的安全区矩形，超界自动缩字号、换行，绝不裁字、绝不压到平台自己的浮层上。",
         "en": "Titles are typeset only inside the rules-defined safe-zone rectangle — when they overflow, the font shrinks and wraps, never cuts, never lands on the platform's own overlays."
       },
-      "chips": ["› 只排进安全区", "› 超界自动缩字", "› 绝不裁字"]
+      "chips": ["› 只排进安全区", "› 超界自动缩字", "› 绝不裁字", "› 自证角标防偷换"]
     },
     {
       "title": {
