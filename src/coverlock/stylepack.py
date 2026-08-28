@@ -452,6 +452,13 @@ def render_cover(
         width=size.width,
         height=size.height,
         seed=_seed_for(pack, index),
+        # Forward the locked model.params (e.g. guidance) so each provider
+        # client receives the knobs the pack froze as part of the style
+        # identity (LOCKED_FIELDS includes "model"). Without this the doubao
+        # client's `request.params.get("guidance")` was dead code and a locked
+        # guidance never reached the provider; clients cherry-pick the keys
+        # they know and ignore the rest (aspect/seed_strategy are meta fields).
+        params=pack.model_params,
     )
     main_visual = model.generate(req)
     return compose_cover(
@@ -618,7 +625,8 @@ def regen_one(
     Returns the path of the single re-rendered cover.
 
     Raises:
-        LockError: if the pack is unlocked or has been edited since lock.
+        LockError: if the pack is unlocked, has been edited since lock, or was
+            re-locked after this set was generated (so regen would mix styles).
         StylePackError: if there is no generated set, or ``index`` is out of range.
     """
     pack = load_pack(pack_path)
@@ -626,6 +634,25 @@ def regen_one(
 
     out = Path(out_dir)
     side = read_sidecar(out)
+
+    # The sidecar records the locked_sha the set was generated from. If the
+    # pack has since been re-locked (the documented way to evolve a style),
+    # regenerating one cover would render it in the NEW style while every
+    # other cover on disk keeps the old style — a mixed set — and the
+    # sidecar's locked_sha would then be rewritten to the new sha, falsely
+    # claiming the whole set originated from the re-locked pack. Refuse so
+    # the user re-runs ``coverlock gen`` to regenerate the whole set in the
+    # new style. Guarded on the sidecar actually recording a locked_sha so a
+    # legacy/foreign sidecar without one still regenerates.
+    set_sha = side.get("locked_sha")
+    if set_sha and pack.locked_sha and str(set_sha) != pack.locked_sha:
+        raise LockError(
+            f"style-pack {pack.id!r} was re-locked after this set was generated "
+            f"(set origin sha {str(set_sha)[:12]}… vs current {pack.locked_sha[:12]}…); "
+            f"regen would mix styles — re-run `coverlock gen` to regenerate the "
+            f"whole set in the new style"
+        )
+
     titles: list[str] = list(side.get("titles") or [])
     if not titles:
         raise StylePackError(f"cover set in {out} records no titles")

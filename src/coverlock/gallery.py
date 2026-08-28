@@ -159,17 +159,33 @@ def audit_cover(
     Size compliance is derived from the cover's pixel dimensions. Safe-zone
     compliance is taken VERBATIM from ``safe_zone_verdict`` (the compose-time
     ComplianceReport.title_in_safe_zone persisted in the sidecar by gen/regen)
-    when one is supplied — so the footer can never lie by re-deriving the title
-    block with the platform default font, which diverges from the pack's locked
-    title typography that compose_cover actually drew. When no persisted verdict
-    is available (a legacy sidecar without compliance, or a foreign cover), it
+    when one is supplied — but ONLY when the cover on disk still IS the
+    sidecar's declared ``size_name`` (the verdict was computed for that size),
+    so a cover swapped to another valid size or a foreign size cannot inherit
+    a stale verdict and the footer can never self-prove a cover whose title
+    was never laid out in the safe-zone of its current size. Otherwise it
     falls back to re-deriving the layout from the sidecar title — but only when
     the cover on disk actually IS that named size; otherwise it reports ``False``.
     """
     with Image.open(path) as im:
         w, h = im.size
     size = _matching_size(rules, w, h)
-    if safe_zone_verdict is not None:
+    # The persisted verdict was computed at compose time for the sidecar's
+    # declared ``size_name``; it is only valid for a cover whose pixels still
+    # match that size. Trusting it verbatim for a cover swapped to another
+    # (valid) named size — or a foreign size — let the footer self-prove a
+    # cover whose title was never laid out in the safe-zone of its current
+    # size, reopening the "footer can never lie about a set it didn't
+    # actually check" guarantee. So trust the verdict only when the cover on
+    # disk IS the declared size; otherwise fall through to re-derivation,
+    # which honestly returns False for a size mismatch (it checks the cover
+    # actually is the named size before re-deriving the title block).
+    if (
+        safe_zone_verdict is not None
+        and size_name is not None
+        and size is not None
+        and size.name == size_name
+    ):
         title_in_safe_zone = bool(safe_zone_verdict)
     else:
         title_in_safe_zone = _recompute_safe_zone(rules, title, size_name, w, h)

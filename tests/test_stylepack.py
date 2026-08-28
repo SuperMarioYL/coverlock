@@ -362,3 +362,88 @@ def test_regen_requires_locked_pack(tmp_path):
     # No render/lock; regen must refuse an unlocked pack.
     with pytest.raises(LockError):
         regen_one(path, index=1, title="x", out_dir=tmp_path / "out")
+
+
+# --------------------------------------------------------------------------- #
+# render_cover forwards the pack's locked model.params (v0.5.0)
+# --------------------------------------------------------------------------- #
+def test_render_cover_forwards_locked_model_params(tmp_path, monkeypatch):
+    """Regression for fix-render-cover-drops-locked-model-params.
+
+    ``render_cover`` used to build the ``ImageRequest`` with no ``params``,
+    so a locked provider knob like ``guidance`` was silently dropped — the
+    doubao client's ``request.params.get("guidance")`` was dead code (always
+    ``None``). Now ``render_cover`` forwards ``pack.model_params`` so each
+    provider client receives the knobs the pack froze as part of the style
+    identity (``model`` is a locked field). Verified with a spy model that
+    captures the request the render path actually builds.
+    """
+    import coverlock.stylepack as sp_mod
+    from coverlock.models import get_model as real_get_model
+    from coverlock.rules import load_platform_rules
+
+    captured: dict = {}
+    real_mock = real_get_model("mock")
+
+    class _Spy:
+        name = "spy"
+
+        def generate(self, request):
+            captured["params"] = dict(request.params)
+            return real_mock.generate(request)
+
+    # Intercept the model lookup inside the stylepack module so the pack's
+    # declared target is irrelevant to the assertion.
+    monkeypatch.setattr(sp_mod, "get_model", lambda name: _Spy())
+
+    path = _mock_locked_pack(tmp_path)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["model"]["params"] = {"guidance": 6.5, "aspect": "4:5", "seed_strategy": "pinned"}
+    path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    lock_pack(path)  # re-lock so the new params join the frozen identity
+    pack = load_pack(path)
+    rules = load_platform_rules("xiaohongshu")
+
+    sp.render_cover(pack, "标题", 1, rules, size_name="4:5")
+
+    assert captured["params"].get("guidance") == 6.5
+    assert captured["params"].get("aspect") == "4:5"
+
+
+# --------------------------------------------------------------------------- #
+# regen refuses a pack re-locked after the set was generated (v0.5.0)
+# --------------------------------------------------------------------------- #
+def test_regen_refuses_relocked_pack(tmp_path):
+    """Regression for fix-regen-mixes-relocked-pack.
+
+    ``regen_one`` used to call ``verify_lock`` (pack locked & unedited) but
+    never compared the pack's current ``locked_sha`` to the ``locked_sha``
+    the sidecar recorded at gen time. A re-locked (evolved) pack passed
+    ``verify_lock``, so regen silently rendered one cover in the NEW style
+    while the rest kept the old style, then rewrote the sidecar's
+    ``locked_sha`` to the new sha — mislabelling the whole set's origin. Now
+    regen raises ``LockError`` when the set's origin sha differs from the
+    pack's current sha, and no cover file on disk changes.
+    """
+    path = _mock_locked_pack(tmp_path)
+    pack = load_pack(path)
+    out = tmp_path / "out"
+    render_set(pack, ["一", "二", "三"], out)
+    origin_sha = pack.locked_sha
+
+    # Evolve the style: edit a locked field and re-lock (the documented way).
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data["palette"] = ["#000000", "#ffffff", "#123456"]
+    path.write_text(yaml.safe_dump(data, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    lock_pack(path)
+    relocked = load_pack(path)
+    assert relocked.locked_sha != origin_sha  # style genuinely evolved
+
+    before = {p.name: _sha_file(p) for p in sorted(out.glob("cover_*.png"))}
+    with pytest.raises(LockError):
+        regen_one(path, index=2, title="新", out_dir=out)
+    after = {p.name: _sha_file(p) for p in sorted(out.glob("cover_*.png"))}
+    # No cover file changed: regen refused before rendering.
+    assert before == after
+    # The sidecar's origin sha is NOT corrupted to the re-locked sha.
+    assert sp.read_sidecar(out)["locked_sha"] == origin_sha

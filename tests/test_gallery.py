@@ -360,3 +360,41 @@ def test_gallery_degrades_on_malformed_sidecar(rendered_set):
     assert isinstance(report, gal.GalleryReport)
     assert report.total == 10  # covers are still on disk
     assert report.size_compliant_count == 10  # size axis recomputed from pixels
+
+
+# --------------------------------------------------------------------------- #
+# gallery safe-zone verdict invalidated when a cover is swapped to another
+# valid size (v0.5.0)
+# --------------------------------------------------------------------------- #
+def test_gallery_verdict_invalidated_by_size_swap(rendered_set):
+    """Regression for fix-gallery-verdict-trusts-swapped-size.
+
+    ``audit_cover`` used to take the persisted ``safe_zone_verdict`` verbatim
+    with no check that the cover on disk still matched the sidecar's declared
+    ``size_name``. A cover swapped to another VALID xiaohongshu size (4:5 ->
+    3:4) inherited the stale ``True`` verdict computed for the original 4:5
+    layout — so the size axis passed (3:4 is a valid size) AND the safe-zone
+    axis passed (stale verdict), and the footer self-proved a cover whose
+    title was never laid out in the 3:4 safe-zone. Now the verdict is trusted
+    only when the cover's pixels still match the declared ``size_name``; a
+    swapped cover falls through to re-derivation, which honestly returns
+    ``False`` for a size mismatch.
+    """
+    out = rendered_set["out"]
+    rules = load_platform_rules("xiaohongshu")
+    sz34 = rules.size("3:4")  # a different VALID named size (1080x1440)
+    # Swap cover_05 to a valid 3:4 image; its persisted verdict (True) was
+    # computed for the original 4:5 cover.
+    Image.new("RGB", (sz34.width, sz34.height), (200, 200, 200)).save(out / "cover_05.png")
+
+    report = build_gallery(pack_path=rendered_set["pack_path"], covers_dir=out)
+    swapped = next(a for a in report.audits if a.path.name == "cover_05.png")
+    # The size axis still passes — 3:4 is a real xiaohongshu size.
+    assert swapped.size_compliant is True
+    # The stale safe-zone verdict must NOT be trusted for the new size.
+    assert swapped.title_in_safe_zone is False
+    assert swapped.fully_compliant is False
+    # The other 9 (still 4:5) covers keep their genuine True verdicts.
+    assert report.safe_zone_count == 9
+    assert report.size_compliant_count == 10
+    assert report.all_compliant is False

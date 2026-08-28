@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-28
+
+### Fixed
+
+- **Gallery safe-zone verdict invalidated by a swapped size** — `audit_cover`
+  now trusts the persisted `title_in_safe_zone` verdict only when the cover on
+  disk still matches the sidecar's declared size. A cover overwritten with
+  another valid Xiaohongshu size (e.g. 4:5 → 3:4) no longer inherits a stale
+  `True` verdict computed for the original size, so the footer self-proof can
+  no longer pass a cover whose title was never laid out in its current
+  safe-zone.
+- **`render_cover` forwards locked `model.params`** — the pack's locked
+  model parameters (e.g. `guidance`) are now passed to the image model request
+  instead of being silently dropped. The doubao client's `guidance` plumbing
+  is no longer dead code; two packs that differ only in a model param now
+  render differently, as their distinct lock identities imply.
+- **`regen` refuses a re-locked pack** — `regen_one` now compares the pack's
+  current `locked_sha` to the one the set was generated from. A pack re-locked
+  after `gen` (an explicit style evolution) is rejected with a clear
+  `LockError` so `regen` can no longer silently render one cover in a new
+  style while the rest keep the old style, nor rewrite the sidecar to
+  mislabel the whole set's origin. Re-run `coverlock gen` to evolve a set.
+
 ## [0.4.0] - 2026-08-14
 
 ### Fixed
@@ -81,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI** (`coverlock`) — the full `init → lock → gen → regen → gallery` loop,
   plus `models` and `rules` introspection commands.
 
-[Unreleased]: https://github.com/SuperMarioYL/coverlock/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/SuperMarioYL/coverlock/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/SuperMarioYL/coverlock/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/SuperMarioYL/coverlock/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/SuperMarioYL/coverlock/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/SuperMarioYL/coverlock/compare/v0.1.0...v0.2.0
