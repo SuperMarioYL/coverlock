@@ -533,17 +533,25 @@ def report_to_compliance(report: Any) -> "dict[str, Any]":
 
 def _write_sidecar(
     out_dir: Path,
-    pack: StylePack,
+    pack: Optional[StylePack],
     titles: list[str],
     size_name: str,
     *,
     compliance: "list[dict[str, Any] | None] | None" = None,
+    platform: Optional[str] = None,
 ) -> None:
+    # ``pack`` is None for the packless `gen --model mock` demo path (m1), which
+    # has no style-pack but still produces compliant covers whose compose-time
+    # safe-zone verdicts must be persisted so the gallery (m3) can read them
+    # back instead of falling back to a default-font re-derivation that reports
+    # 0/N for covers `gen` just verified. The gallery reads only
+    # platform/titles/size_name/compliance, so a pack-less sidecar (null
+    # pack_id/pack_path/locked_sha) makes that demo flow self-prove honestly.
     payload = {
-        "pack_id": pack.id,
-        "pack_path": str(pack.source_path) if pack.source_path else None,
-        "locked_sha": pack.locked_sha,
-        "platform": pack.platform,
+        "pack_id": pack.id if pack else None,
+        "pack_path": str(pack.source_path) if pack and pack.source_path else None,
+        "locked_sha": pack.locked_sha if pack else None,
+        "platform": platform or (pack.platform if pack else None),
         "size_name": size_name,
         "titles": titles,
     }
@@ -556,17 +564,25 @@ def _write_sidecar(
 
 def write_sidecar(
     out_dir: str | Path,
-    pack: StylePack,
+    pack: Optional[StylePack],
     titles: Sequence[str],
     size_name: str,
     *,
     compliance: "Sequence[dict[str, Any] | None] | None" = None,
+    platform: Optional[str] = None,
 ) -> None:
     """Public wrapper: record the cover-set sidecar (pack id, size, per-cover
-    titles, and per-cover compose-time compliance verdicts)."""
+    titles, and per-cover compose-time compliance verdicts).
+
+    ``pack`` may be ``None`` for the packless ``gen`` path; then ``platform``
+    must carry the rule-table key (e.g. ``"xiaohongshu"``) so the gallery can
+    load the right size table, and ``pack_id``/``pack_path``/``locked_sha`` are
+    written as null.
+    """
     _write_sidecar(
         Path(out_dir), pack, list(titles), size_name,
         compliance=list(compliance) if compliance is not None else None,
+        platform=platform,
     )
 
 
@@ -651,6 +667,32 @@ def regen_one(
             f"(set origin sha {str(set_sha)[:12]}… vs current {pack.locked_sha[:12]}…); "
             f"regen would mix styles — re-run `coverlock gen` to regenerate the "
             f"whole set in the new style"
+        )
+
+    # The sidecar records the single size_name the set was generated at. A cover
+    # SET is one size (the gallery grid assumes a uniform aspect and the sidecar
+    # declares ONE size_name for the whole set), so regenerating one cover at a
+    # different size would render it in a foreign size while every other cover
+    # keeps the old size — and _write_sidecar would then rewrite the sidecar's
+    # size_name to the new size, so the gallery's audit_cover size-swap gate
+    # (which compares each cover's on-disk size to the declared size_name) would
+    # route every untouched old-size cover to _recompute_safe_zone, which
+    # honestly returns False for a size mismatch — the footer would lie for
+    # covers that WERE compliant at gen time. This is the size-axis analogue of
+    # the locked_sha re-lock guard above; evolving a set's size is what
+    # ``coverlock gen`` (whole set) is for. size_name is a gen-time parameter
+    # (not a LOCKED_FIELDS entry), so the honest error class is StylePackError.
+    # Guarded on the sidecar recording a size AND the caller passing a different
+    # one; the CLI regen path passes size_name=None (keeps the set's size) and a
+    # legacy/foreign sidecar without a size_name falls through, so a valid regen
+    # is never blocked.
+    set_size = side.get("size_name")
+    if size_name and set_size and str(size_name) != str(set_size):
+        raise StylePackError(
+            f"cover set in {out} was generated at size {set_size!r}; regen at size "
+            f"{size_name!r} would mix sizes (one cover in a foreign size while the "
+            f"rest keep {set_size!r}) — re-run `coverlock gen` to regenerate the "
+            f"whole set at the new size"
         )
 
     titles: list[str] = list(side.get("titles") or [])

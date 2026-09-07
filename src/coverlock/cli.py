@@ -98,6 +98,8 @@ def gen(
         return
 
     # -- packless path (no style-pack; a quick offline demo) ---------------- #
+    from . import stylepack
+
     rules = load_platform_rules_cached(platform)
     size_spec = rules.size(size)
     model_name = model or "mock"
@@ -108,6 +110,7 @@ def gen(
 
     out.mkdir(parents=True, exist_ok=True)
     size_ok = zone_ok = 0
+    compliance: list = []
     typer.echo(
         f"coverlock gen · model={model_name} · size={size_spec.name} "
         f"({size_spec.width}x{size_spec.height}) · {len(title_list)} title(s)"
@@ -125,9 +128,24 @@ def gen(
         dest = out / f"cover_{i:02d}.png"
         cover.save(dest)
         rep = cover.report
+        compliance.append(stylepack.report_to_compliance(rep))
         size_ok += int(rep.size_compliant)
         zone_ok += int(rep.title_in_safe_zone)
         _echo_cover_line(dest, rep)
+
+    # Persist a sidecar so `regen` / `gallery` can reconstruct this exact set
+    # and read each cover's compose-time safe-zone verdict verbatim — without it
+    # the gallery's no-sidecar fallback (_recompute_safe_zone with title=None)
+    # reports 0/N for covers `gen` just verified as compliant, so the
+    # documented install-to-gallery mock chain (README: "install → gallery …
+    # 跑通全链路 … size-compliant 10/10 · titles-in-safe-zone 10/10") lies. The
+    # pack path already writes this sidecar (see _gen_from_pack); the packless
+    # m1 demo path now does too, keyed by the CLI `platform` with null pack
+    # provenance (no pack ⇒ no locked_sha).
+    stylepack.write_sidecar(
+        out, None, list(title_list), size_spec.name,
+        compliance=compliance, platform=platform,
+    )
 
     n = len(title_list)
     typer.echo(f"done · size-compliant {size_ok}/{n} · titles-in-safe-zone {zone_ok}/{n} · out={out}")

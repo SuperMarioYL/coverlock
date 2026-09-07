@@ -447,3 +447,62 @@ def test_regen_refuses_relocked_pack(tmp_path):
     assert before == after
     # The sidecar's origin sha is NOT corrupted to the re-locked sha.
     assert sp.read_sidecar(out)["locked_sha"] == origin_sha
+
+
+# --------------------------------------------------------------------------- #
+# regen refuses a size that differs from the set's recorded size (v0.6.0)
+# --------------------------------------------------------------------------- #
+def test_regen_refuses_mismatched_size(tmp_path):
+    """Regression for fix-regen-mixes-resized-pack.
+
+    ``regen_one`` used to compute ``resolved_size = size_name or
+    side.get("size_name")`` and rewrite the sidecar's single declared
+    ``size_name`` to whatever size was passed, so regenerating one cover at
+    another size rendered it in a foreign size while every other cover kept
+    the old size — and the gallery's ``audit_cover`` size-swap gate (which
+    compares each cover's on-disk size to the declared ``size_name``) then
+    routed every untouched old-size cover to ``_recompute_safe_zone``, which
+    honestly returns ``False`` for a size mismatch, so the footer lied for
+    covers that WERE compliant at gen time. Reproduced: a 4:5 set, regen
+    index 2 at 3:4 → footer ``titles-in-safe-zone 1/3``. This is the
+    size-axis analogue of ``fix-regen-mixes-relocked-pack`` (which closed
+    the locked_sha axis with the same guard pattern). Now regen raises
+    ``StylePackError`` when the caller's ``size_name`` differs from the
+    set's recorded size, and no cover file on disk changes.
+    """
+    path = _mock_locked_pack(tmp_path)
+    pack = load_pack(path)
+    out = tmp_path / "out"
+    render_set(pack, ["一", "二", "三"], out, size_name="4:5")
+    assert sp.read_sidecar(out)["size_name"] == "4:5"
+
+    before = {p.name: _sha_file(p) for p in sorted(out.glob("cover_*.png"))}
+    with pytest.raises(StylePackError):
+        regen_one(path, index=2, title="新", out_dir=out, size_name="3:4")
+    after = {p.name: _sha_file(p) for p in sorted(out.glob("cover_*.png"))}
+    # No cover file changed: regen refused before rendering.
+    assert before == after
+    # The sidecar's declared size is NOT corrupted to the requested foreign size.
+    assert sp.read_sidecar(out)["size_name"] == "4:5"
+
+
+def test_regen_keeps_set_size_when_size_name_omitted(tmp_path):
+    """The guard must not block a valid regen that keeps the set's size.
+
+    The CLI regen path always passes ``size_name=None`` (it keeps the set's
+    recorded size); a legacy/foreign sidecar without a ``size_name`` also
+    falls through. Both must still regenerate exactly one cover.
+    """
+    path = _mock_locked_pack(tmp_path)
+    pack = load_pack(path)
+    out = tmp_path / "out"
+    render_set(pack, ["一", "二", "三"], out, size_name="4:5")
+
+    before = {p.name: _sha_file(p) for p in sorted(out.glob("cover_*.png"))}
+    dest = regen_one(path, index=2, title="全新的二", out_dir=out)  # size_name omitted
+    assert dest.name == "cover_02.png"
+    after = {p.name: _sha_file(p) for p in sorted(out.glob("cover_*.png"))}
+    changed = [n for n, h in before.items() if after[n] != h]
+    assert changed == ["cover_02.png"], f"regen touched more than one cover: {changed}"
+    # The set's declared size is unchanged.
+    assert sp.read_sidecar(out)["size_name"] == "4:5"
