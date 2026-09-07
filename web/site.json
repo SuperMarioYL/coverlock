@@ -1,92 +1,272 @@
 {
-  "schema": 1,
-  "name": "coverlock",
+  "schema": 3,
+  "name": "CoverLock",
   "github": "https://github.com/SuperMarioYL/coverlock",
   "host": "coverlock.lei6393.com",
-  "lang": { "primary": "zh", "toggle": true },
-  "accent": ["#FF4365", "#FF7A45", "#FFB347"],
-  "content_version": "v0.5.0",
-  "generated_at": "2026-08-28T04:38:14Z",
+  "palette": "auto",
+  "lang": {
+    "primary": "zh",
+    "toggle": true
+  },
+  "meta": {
+    "visual_profile": "neon-particle",
+    "content_version": "0.5.0",
+    "demo_source": "docs/demo-results.json"
+  },
   "hero": {
     "eyebrow": {
-      "zh": "账号级风格锁定 · 尺寸合规 · 标题不越界",
-      "en": "Account style-lock · Size-compliant · Titles in-bounds"
+      "zh": "把封面风格、模型参数与标题布局保存成可锁定的 style-pack，重复生成并检查一套封面。",
+      "en": "Save cover style, model parameters and title layout in a lockable style pack, then generate and inspect a consistent cover set."
     },
     "headline": {
-      "zh": "锁一次账号风格，\n之后每帖封面都合规、标题都在安全区",
-      "en": "Lock the account look once —\nevery cover after is compliant, titles in the safe-zone"
+      "zh": "锁定一套风格，\n反复生成封面",
+      "en": "Lock a style.\nBuild the next cover set."
     },
     "sub": {
-      "zh": "把账号视觉冻结成一个可复用、可分享的风格资产；之后每张封面都从它生成，尺寸按平台规则强制合规，标题只排进安全区——超界自动缩字，绝不裁字。",
-      "en": "Freeze your account's look into a reusable, shareable style asset; every cover after is generated from it, size-enforced to platform rules, titles typeset only inside the safe-zone — shrunk, never cut, when they overflow."
+      "zh": "把封面风格、模型参数与标题布局保存成可锁定的 style-pack，重复生成并检查一套封面。",
+      "en": "Save cover style, model parameters and title layout in a lockable style pack, then generate and inspect a consistent cover set."
     },
-    "command": "coverlock gen --pack my-pack.yaml --titles titles.txt --model mock",
-    "cta": { "zh": "查看 GitHub", "en": "View on GitHub" },
-    "ctaGithub": { "zh": "Star 项目", "en": "Star the repo" },
-    "scroll": { "zh": "看看怎么锁", "en": "See how it locks" }
+    "href": "#quickstart",
+    "cta": {
+      "zh": "运行示例",
+      "en": "Run the example"
+    },
+    "ctaGithub": {
+      "zh": "查看源码",
+      "en": "View source"
+    }
+  },
+  "scene": {
+    "kind": "neon-graph",
+    "caption": {
+      "zh": "风格锁定 · 本地合成",
+      "en": "STYLE LOCK · LOCAL COMPOSITION"
+    },
+    "fallback": "/assets/presentation/scene-dark.svg",
+    "fallbackLight": "/assets/presentation/scene-light.svg"
   },
   "advantages": [
     {
       "title": {
-        "zh": "锁一次，每帖都继承",
-        "en": "Lock once, every post inherits it"
+        "zh": "复用设置",
+        "en": "Reuse settings"
       },
       "body": {
-        "zh": "别再每帖都从头重选风格——把账号视觉冻结成一个可复用、可分享的风格资产，之后每张封面都从它生成。同一个账号，跨帖跨天，同一套视觉。",
-        "en": "Stop re-deciding your look for every post. Freeze the account's visual into a reusable, shareable style asset — every cover after is generated from it. One account, across posts and days, one consistent look."
-      },
-      "chips": ["› 锁定后风格冻结", "› 跨帖跨天复用", "› 保风格只重绘单张"]
+        "zh": "一个 YAML pack 保存模型、提示词和布局。",
+        "en": "A YAML pack stores model, prompt and layout choices."
+      }
     },
     {
       "title": {
-        "zh": "尺寸永远合规，改规则只改配置",
-        "en": "Sizes always compliant — rules live in config"
+        "zh": "检查真实边界",
+        "en": "Inspect actual bounds"
       },
       "body": {
-        "zh": "出图后按平台规则把画面强制到 4:5 或 3:4，输出 100% 合规；平台改尺寸，只改规则表，不碰任何代码。",
-        "en": "After rendering, each image is forced to 4:5 or 3:4 by platform rules — output is 100% compliant. Change a platform's size and you only edit the rules table, never the code."
-      },
-      "chips": ["› 4:5 / 3:4 强制合规", "› 规则表外置", "› 改尺寸不改代码"]
+        "zh": "合成阶段的标题边界写入 sidecar。",
+        "en": "Compose-time title bounds are saved in the sidecar."
+      }
     },
     {
       "title": {
-        "zh": "标题永远在安全区，绝不裁字",
-        "en": "Titles always in the safe-zone — never cut"
+        "zh": "只重绘一张",
+        "en": "Revise one cover"
       },
       "body": {
-        "zh": "标题只排进规则定义的安全区矩形，超界自动缩字号、换行，绝不裁字、绝不压到平台自己的浮层上。",
-        "en": "Titles are typeset only inside the rules-defined safe-zone rectangle — when they overflow, the font shrinks and wraps, never cuts, never lands on the platform's own overlays."
-      },
-      "chips": ["› 只排进安全区", "› 超界自动缩字", "› 绝不裁字", "› 自证角标防偷换"]
-    },
-    {
-      "title": {
-        "zh": "零 key 离线，从安装到自证",
-        "en": "Zero-key, offline — from install to self-proof"
-      },
-      "body": {
-        "zh": "内置一个零 key、离线的本地模型，从安装到那张一致性 gallery 全链路无需任何 key、无需联网即可跑通；要出真图，带上你自己的图像模型 key 即可。",
-        "en": "A zero-key, offline local model is built in — from install to the consistency gallery, the whole chain runs with no key and no network. Want real images? Bring your own image-model key."
-      },
-      "chips": ["› 零 key · 离线", "› 全链路本地跑通", "› 真图自带 key"]
+        "zh": "regen 对指定索引重新合成，保留其他封面文件。",
+        "en": "regen recomposes the selected index while retaining other cover files."
+      }
     }
   ],
-  "scene": { "kind": "mesh" },
-  "cta": {
-    "headline": {
-      "zh": "把账号视觉锁成一个资产",
-      "en": "Lock your account's look into an asset"
+  "story": {
+    "intro": {
+      "title": {
+        "zh": "让下一张封面延续已有设置",
+        "en": "Carry your settings into the next cover"
+      },
+      "body": {
+        "zh": "批量做封面时，模型视觉、标题排版和平台尺寸通常要反复配置。CoverLock 把这些设置收进 YAML style-pack，锁定后复用同一套参数，并将每张封面的尺寸与标题边界记录在 sidecar 中供 gallery 检查。",
+        "en": "Cover batches require repeated decisions about image style, title layout and canvas dimensions. CoverLock keeps those choices in a YAML style pack, reuses its locked settings, and records size and title bounds in sidecars for gallery inspection."
+      }
     },
-    "sub": {
-      "zh": "开源 · Apache-2.0 · 本地一条命令跑通。",
-      "en": "Open source · Apache-2.0 · runs locally in one command."
-    },
-    "button": { "zh": "查看 GitHub", "en": "View on GitHub" }
+    "sections": [
+      {
+        "title": {
+          "zh": "从输入到结果",
+          "en": "From input to result"
+        },
+        "body": {
+          "zh": "实际运行 3 张封面的离线 mock 流程，验证锁定、合成、单张重绘和 gallery。3/3 是本次输入的本地几何检查结果，不证明模型画质或平台审核通过。",
+          "en": "The real three-cover offline mock run exercises locking, composition, one-cover regeneration and gallery creation. The 3/3 result is a local geometry check for these inputs, not model-quality or platform-acceptance evidence."
+        },
+        "image": {
+          "light": "/assets/presentation/process-light.svg",
+          "dark": "/assets/presentation/process-dark.svg",
+          "alt": {
+            "zh": "实际运行 3 张封面的离线 mock 流程，验证锁定、合成、单张重绘和 gallery。3/3 是本次输入的本地几何检查结果，不证明模型画质或平台审核通过。",
+            "en": "The real three-cover offline mock run exercises locking, composition, one-cover regeneration and gallery creation. The 3/3 result is a local geometry check for these inputs, not model-quality or platform-acceptance evidence."
+          }
+        }
+      },
+      {
+        "title": {
+          "zh": "工作原理",
+          "en": "How it works"
+        },
+        "body": {
+          "zh": "stylepack.py 管理 YAML 和锁定摘要；模型 adapter 生成无文字底图；compose.py 按 rules.py 的尺寸与安全区排标题；gallery.py 读取实际合成时的合规记录拼图。模型能力与本地排版检查是不同环节。",
+          "en": "stylepack.py owns YAML and lock hashes. Model adapters create text-free visuals; compose.py places titles using dimensions and safe zones from rules.py. gallery.py builds a contact sheet from recorded compose-time checks. Model quality and local layout checks are separate concerns."
+        },
+        "image": {
+          "light": "/assets/presentation/architecture-light.svg",
+          "dark": "/assets/presentation/architecture-dark.svg",
+          "alt": {
+            "zh": "stylepack.py 管理 YAML 和锁定摘要；模型 adapter 生成无文字底图；compose.py 按 rules.py 的尺寸与安全区排标题；gallery.py 读取实际合成时的合规记录拼图。模型能力与本地排版检查是不同环节。",
+            "en": "stylepack.py owns YAML and lock hashes. Model adapters create text-free visuals; compose.py places titles using dimensions and safe zones from rules.py. gallery.py builds a contact sheet from recorded compose-time checks. Model quality and local layout checks are separate concerns."
+          }
+        }
+      },
+      {
+        "title": {
+          "zh": "能力与接入",
+          "en": "Capabilities and integration"
+        },
+        "body": {
+          "zh": "文件输入和本地合成层可离线使用，远程模型只负责底图。用 models、rules 查看当前 backend 与几何规则；gallery 读取合成时记录的标题边界，而不是仅看固定尺寸。",
+          "en": "File inputs and local composition work offline; remote models supply only the base image. Use models and rules to inspect available routes. Gallery reads recorded title bounds from composition rather than judging only canvas size."
+        },
+        "image": {
+          "light": "/assets/presentation/integrations-light.svg",
+          "dark": "/assets/presentation/integrations-dark.svg",
+          "alt": {
+            "zh": "文件输入和本地合成层可离线使用，远程模型只负责底图。用 models、rules 查看当前 backend 与几何规则；gallery 读取合成时记录的标题边界，而不是仅看固定尺寸。",
+            "en": "File inputs and local composition work offline; remote models supply only the base image. Use models and rules to inspect available routes. Gallery reads recorded title bounds from composition rather than judging only canvas size."
+          }
+        }
+      }
+    ],
+    "details": [
+      {
+        "title": {
+          "zh": "锁定后修改",
+          "en": "Changing a locked style"
+        },
+        "body": {
+          "zh": "改动锁定字段需重新 lock；已有套图要按新风格整体重生成。",
+          "en": "Relock after editing locked fields, then regenerate existing sets under the new style."
+        }
+      }
+    ]
   },
-  "footer": {
-    "tag": {
-      "zh": "给小红书封面做账号级风格锁定",
-      "en": "Account-level style-locking for Xiaohongshu covers"
+  "demo": {
+    "title": {
+      "zh": "实际运行结果",
+      "en": "Actual demo output"
+    },
+    "note": {
+      "zh": "实际运行 3 张封面的离线 mock 流程，验证锁定、合成、单张重绘和 gallery。3/3 是本次输入的本地几何检查结果，不证明模型画质或平台审核通过。",
+      "en": "The real three-cover offline mock run exercises locking, composition, one-cover regeneration and gallery creation. The 3/3 result is a local geometry check for these inputs, not model-quality or platform-acceptance evidence."
+    },
+    "source": "https://github.com/SuperMarioYL/coverlock/blob/main/docs/demo-results.json",
+    "steps": [
+      {
+        "label": {
+          "zh": "锁定风格",
+          "en": "Lock the style"
+        },
+        "body": {
+          "zh": "对示例 pack 计算并保存锁定摘要。",
+          "en": "Compute and store the example pack lock."
+        },
+        "command": "python -m coverlock.cli lock examples/presentation-pack.yaml",
+        "output": "locked examples/presentation-pack.yaml\nlocked_sha: f3dab7a4a2c7cc0cdb3aad0575d091dd5a2c061621497f26e44876c966a8b4a6\nthe style is now frozen; any edit to a locked field will be detected.\n",
+        "image": "/assets/presentation/demo-0-light.svg",
+        "imageDark": "/assets/presentation/demo-0-dark.svg"
+      },
+      {
+        "label": {
+          "zh": "生成三张",
+          "en": "Generate three covers"
+        },
+        "body": {
+          "zh": "内置 mock 生成三张，尺寸与标题边界检查为 3/3。",
+          "en": "The built-in mock generates three covers with 3/3 size and title checks."
+        },
+        "command": "python -m coverlock.cli gen --pack examples/presentation-pack.yaml --titles examples/presentation-titles.txt --out examples/presentation-output",
+        "output": "coverlock gen · pack=presentation (locked) · model=mock · size=4:5 (1080x1350) · 3 title(s)\n  [✓] cover_01.png  1080x1350  size=✓ safe-zone=✓\n  [✓] cover_02.png  1080x1350  size=✓ safe-zone=✓\n  [✓] cover_03.png  1080x1350  size=✓ safe-zone=✓\ndone · size-compliant 3/3 · titles-in-safe-zone 3/3 · out=examples/presentation-output\n",
+        "image": "/assets/presentation/demo-1-light.svg",
+        "imageDark": "/assets/presentation/demo-1-dark.svg"
+      },
+      {
+        "label": {
+          "zh": "重绘第二张",
+          "en": "Regenerate cover two"
+        },
+        "body": {
+          "zh": "第二张换成新标题。",
+          "en": "The second cover receives a new title."
+        },
+        "command": "python -m coverlock.cli regen --pack examples/presentation-pack.yaml --out examples/presentation-output --index 2 --title \"Read something new\"",
+        "output": "regenerated cover 02 → examples/presentation-output/cover_02.png (same locked pack; other covers untouched)\n",
+        "image": "/assets/presentation/demo-2-light.svg",
+        "imageDark": "/assets/presentation/demo-2-dark.svg"
+      },
+      {
+        "label": {
+          "zh": "检查套图",
+          "en": "Inspect the set"
+        },
+        "body": {
+          "zh": "gallery 汇总本地合成记录。",
+          "en": "Gallery summarizes the recorded local composition checks."
+        },
+        "command": "python -m coverlock.cli gallery --out examples/presentation-output",
+        "output": "gallery → examples/presentation-output/gallery.png\nsize-compliant 3/3 · titles-in-safe-zone 3/3\n",
+        "image": "/assets/presentation/demo-3-light.svg",
+        "imageDark": "/assets/presentation/demo-3-dark.svg"
+      }
+    ]
+  },
+  "quickstart": {
+    "title": {
+      "zh": "从完整输入开始",
+      "en": "Start with complete input"
+    },
+    "body": {
+      "zh": "需要 Python 3.12+。安装依赖需要网络，示例使用内置 mock，不需要模型 key。",
+      "en": "Requires Python 3.12+. Installation needs network access; the demo uses the built-in mock without model credentials."
+    },
+    "steps": [
+      {
+        "title": {
+          "zh": "安装",
+          "en": "Install"
+        },
+        "code": "git clone https://github.com/SuperMarioYL/coverlock.git\ncd coverlock\npython3 -m venv .venv\nsource .venv/bin/activate\npython -m pip install -e ."
+      },
+      {
+        "title": {
+          "zh": "运行自带示例",
+          "en": "Run the supplied example"
+        },
+        "code": "python -m coverlock.cli lock examples/presentation-pack.yaml\npython -m coverlock.cli gen --pack examples/presentation-pack.yaml --titles examples/presentation-titles.txt --out examples/presentation-output\npython -m coverlock.cli regen --pack examples/presentation-pack.yaml --out examples/presentation-output --index 2 --title \"Read something new\"\npython -m coverlock.cli gallery --out examples/presentation-output"
+      }
+    ]
+  },
+  "limitations": [
+    {
+      "zh": "mock 是离线占位视觉，不能代表豆包或 Qwen 的图像质量。",
+      "en": "Mock visuals are offline fixtures, not evidence of Doubao or Qwen image quality."
+    },
+    {
+      "zh": "安全区检查遵循仓库规则表，不等于平台审核或所有标题都能适配。",
+      "en": "Safe-zone checks follow repository rules; they do not guarantee platform acceptance or fit for every title."
+    },
+    {
+      "zh": "不自动发布内容，也不提供已上线的托管套餐。",
+      "en": "The tool does not publish content automatically or provide a live hosted plan."
     }
+  ],
+  "footer": {
+    "tag": "0.5.0 · Python 3.12+ · Apache-2.0"
   }
 }

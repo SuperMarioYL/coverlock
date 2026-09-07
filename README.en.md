@@ -1,154 +1,141 @@
-<div align="right"><sub><b>English</b>&nbsp;&nbsp;⇄&nbsp;&nbsp;<a href="./README.md">中文</a></sub></div>
+**English** | [简体中文](README.md)
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/hero-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/hero-light.svg">
-  <img src="./assets/hero-light.svg" width="880" alt="CoverLock — lock an account-level cover style-pack, render size-compliant, safe-zone-aware Xiaohongshu cover sets">
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/hero-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/hero-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/hero-dark.svg">
+  <img src="assets/presentation/hero-light.svg" width="1000" alt="Save cover style, model parameters and title layout in a lockable style pack, then generate and inspect a consistent cover set.">
 </picture>
 
-<p><sub>CoverLock is a cover-set Skill for Xiaohongshu (小红书) creators: lock an account-level style-pack once, and every subsequent cover inherits the same look, is always size-compliant, and always keeps its title inside the safe-zone — you can even redraw a single cover while keeping the whole style. The killer self-proof is a consistency gallery of 10 covers from one locked style-pack.</sub></p>
+**Save cover style, model parameters and title layout in a lockable style pack, then generate and inspect a consistent cover set.**
 
-<p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License: Apache-2.0"></a>
-  <img src="https://img.shields.io/badge/python-3.12-3776AB.svg?logo=python&logoColor=white" alt="Python 3.12">
-  <img src="https://img.shields.io/badge/version-0.1.0-5E5CE6.svg" alt="Version 0.1.0">
-  <a href="https://github.com/SuperMarioYL/coverlock/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SuperMarioYL/coverlock/ci.yml?label=CI&logo=github" alt="CI"></a>
-  <img src="https://img.shields.io/badge/PRs-welcome-10A37F.svg" alt="PRs welcome">
-  <img src="https://img.shields.io/badge/Skill-cover--sets-8985FF.svg" alt="Skill">
-</p>
+`v0.5.0` · `Python 3.12+` · [Apache-2.0](LICENSE)
 
-CoverLock is not one more "one prompt, one image" text-to-image box. It freezes **an account's whole visual language** into a `lock`-able, reusable, shareable **style-pack** asset: once locked, `gen` / `regen` reuse the exact same `model + prompt scaffold + palette + layout`, so every cover across posts and across days converges to one look — the same lane as guizang's (op7418) social-covers Skill, but pushing the named Xiaohongshu-cover surface one step further: **account-level style lock + enforced 4:5 / 3:4 sizing + enforced title safe-zone.**
+[Website](https://coverlock.lei6393.com) · [Demo record](docs/demo-results.json)
 
-The main visual comes from a domestic image model you bring your own key for (Doubao Seedream / Alibaba Qwen-Image). There is also a built-in zero-key, offline, deterministic `mock` model — so `install → gallery` runs end to end with no key and no network.
+## Why use it
 
-<h2><img src="https://api.iconify.design/tabler:topology-star-3.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Architecture</h2>
+Cover batches require repeated decisions about image style, title layout and canvas dimensions. CoverLock keeps those choices in a YAML style pack, reuses its locked settings, and records size and title bounds in sidecars for gallery inspection.
+
+## Architecture
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/atlas-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/atlas-light.svg">
-  <img src="./assets/atlas-light.svg" width="880" alt="Flow: locked style-pack → domestic image model / mock → compose (sizing + title safe-zone) → 10 covers → consistency gallery">
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/architecture-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/architecture-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/architecture-dark.svg">
+  <img src="assets/presentation/architecture-light.svg" width="1000" alt="stylepack.py owns YAML and lock hashes. Model adapters create text-free visuals; compose.py places titles using dimensions and safe zones from rules.py. gallery.py builds a contact sheet from recorded compose-time checks. Model quality and local layout checks are separate concerns.">
 </picture>
 
-A single-process CLI — no server, no database, all local. **The owned value lives entirely in the offline layer** (`compose` / `rules` / `stylepack` / `gallery`): size compliance, the title safe-zone, and style-pack locking depend on no specific model, so they keep working even if a model API raises prices, shuts down, or is swapped for another provider. The model only produces the *text-free main visual* — a pluggable periphery. Platform sizing / safe-zone rules live in an external YAML (`assets/rules/xiaohongshu.yaml`): change the rules by editing config, not code.
+stylepack.py owns YAML and lock hashes. Model adapters create text-free visuals; compose.py places titles using dimensions and safe zones from rules.py. gallery.py builds a contact sheet from recorded compose-time checks. Model quality and local layout checks are separate concerns.
 
-<h2><img src="https://api.iconify.design/tabler:download.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Install</h2>
+Platform rules are in [assets/rules](assets/rules/), with a [sample pack](assets/stylepacks/example.yaml). v0.5.0 verifies the original pack lock before applying a model override.
 
-```bash
-pip install coverlock
-```
+## Install
 
-Requires Python 3.12+. From source: `git clone … && cd coverlock && pip install -e .`.
-
-<h2><img src="https://api.iconify.design/tabler:rocket.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Quickstart</h2>
-
-Three commands — zero key, offline — from install to the consistency gallery:
+Requires Python 3.12+. Installation needs network access; the demo uses the built-in mock without model credentials.
 
 ```bash
-coverlock init my-pack --desc "minimal magazine look, Morandi palette, generous whitespace"
-coverlock gen --pack my-pack.yaml --titles titles.txt --model mock   # render a vertical cover set
-coverlock gallery --out out                                          # compose the 10-cover gallery
+git clone https://github.com/SuperMarioYL/coverlock.git
+cd coverlock
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
 ```
 
-`titles.txt` is one title per line (`#` starts a comment). `--model mock` runs the whole pipeline with no API key and no network; swap in `--model doubao` / `--model qwen` and `export` the matching key to render real images with a domestic model.
+## Quickstart
 
-<h2><img src="https://api.iconify.design/tabler:terminal-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Usage</h2>
-
-The full `init → lock → gen → regen → gallery` in-the-loop control loop:
-
-**1. Lock the style (freeze the style-pack)**
+The real three-cover offline mock run exercises locking, composition, one-cover regeneration and gallery creation. The 3/3 result is a local geometry check for these inputs, not model-quality or platform-acceptance evidence.
 
 ```bash
-coverlock init my-pack --desc "minimal magazine look, Morandi palette, generous whitespace"
-coverlock lock my-pack.yaml       # validate schema + write locked_sha; the style is now frozen
+python -m coverlock.cli lock examples/presentation-pack.yaml
+python -m coverlock.cli gen --pack examples/presentation-pack.yaml --titles examples/presentation-titles.txt --out examples/presentation-output
+python -m coverlock.cli regen --pack examples/presentation-pack.yaml --out examples/presentation-output --index 2 --title "Read something new"
+python -m coverlock.cli gallery --out examples/presentation-output
 ```
 
-`lock` computes a sha256 over `model + prompt scaffold + palette + layout` and persists it. Any edit to a locked field is detected afterwards.
+Inputs are the [locked pack](examples/presentation-pack.yaml) and [three titles](examples/presentation-titles.txt). Use the [replay script](examples/presentation_demo.sh); the result is [gallery.png](examples/presentation-output/gallery.png).
 
-**2. Render a cover set**
+## Usage
 
-```bash
-export DOUBAO_API_KEY=...                        # bring your own key (skip it offline with --model mock)
-coverlock gen --pack my-pack.yaml --titles titles.txt
-# out/cover_01.png … cover_10.png
-# each is 100% size-compliant (4:5 or 3:4) with the title 100% inside the safe-zone
-# (auto shrink / wrap on overflow — never clipped)
+init creates a draft, lock freezes fields, gen renders a set, regen --index N redraws one cover, and gallery builds a contact sheet. A supplied pack requires a valid lock by default. After evolving and relocking a style, regenerate the whole set to avoid mixed styles.
+
+## Recorded demo
+
+<picture>
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/process-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/process-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/process-dark.svg">
+  <img src="assets/presentation/process-light.svg" width="1000" alt="The real three-cover offline mock run exercises locking, composition, one-cover regeneration and gallery creation. The 3/3 result is a local geometry check for these inputs, not model-quality or platform-acceptance evidence.">
+</picture>
+
+### Lock the style
+
+Compute and store the example pack lock.
+
+```text
+$ python -m coverlock.cli lock examples/presentation-pack.yaml
+locked examples/presentation-pack.yaml
+locked_sha: f3dab7a4a2c7cc0cdb3aad0575d091dd5a2c061621497f26e44876c966a8b4a6
+the style is now frozen; any edit to a locked field will be detected.
 ```
 
-`gen` reads only the locked pack and writes a sidecar so `regen` / `gallery` can reconstruct the whole set.
+### Generate three covers
 
-**3. Redraw a single cover, keep the style (in-the-loop)**
+The built-in mock generates three covers with 3/3 size and title checks.
 
-```bash
-coverlock regen --pack my-pack.yaml --index 3 --title "a new title"
-# redraws cover 3 only; every other cover stays byte-for-byte identical
+```text
+$ python -m coverlock.cli gen --pack examples/presentation-pack.yaml --titles examples/presentation-titles.txt --out examples/presentation-output
+coverlock gen · pack=presentation (locked) · model=mock · size=4:5 (1080x1350) · 3 title(s)
+  [✓] cover_01.png  1080x1350  size=✓ safe-zone=✓
+  [✓] cover_02.png  1080x1350  size=✓ safe-zone=✓
+  [✓] cover_03.png  1080x1350  size=✓ safe-zone=✓
+done · size-compliant 3/3 · titles-in-safe-zone 3/3 · out=examples/presentation-output
 ```
 
-**4. Compose the consistency gallery (the core self-proof)**
+### Regenerate cover two
 
-```bash
-coverlock gallery --out out
-# out/gallery.png: a 10-cell grid + per-cover size✓ / safe-zone✓ badges
-#                  + footer: size-compliant 10/10 · titles-in-safe-zone 10/10
+The second cover receives a new title.
+
+```text
+$ python -m coverlock.cli regen --pack examples/presentation-pack.yaml --out examples/presentation-output --index 2 --title "Read something new"
+regenerated cover 02 → examples/presentation-output/cover_02.png (same locked pack; other covers untouched)
 ```
 
-**Helper commands**
+### Inspect the set
 
-```bash
-coverlock models      # list models: mock (offline, no key) / doubao-seedream / qwen-image
-coverlock rules       # print the loaded platform rule table (sizes + safe-zone rects)
-coverlock --version
+Gallery summarizes the recorded local composition checks.
+
+```text
+$ python -m coverlock.cli gallery --out examples/presentation-output
+gallery → examples/presentation-output/gallery.png
+size-compliant 3/3 · titles-in-safe-zone 3/3
 ```
 
-<h2><img src="https://api.iconify.design/tabler:photo.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Demo</h2>
+## Capabilities and integration
 
-![demo](assets/demo.gif)
+<picture>
+  <source media="(max-width: 640px) and (prefers-color-scheme: dark)" srcset="assets/presentation/integrations-mobile-dark.svg">
+  <source media="(max-width: 640px)" srcset="assets/presentation/integrations-mobile-light.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/presentation/integrations-dark.svg">
+  <img src="assets/presentation/integrations-light.svg" width="1000" alt="File inputs and local composition work offline; remote models supply only the base image. Use models and rules to inspect available routes. Gallery reads recorded title bounds from composition rather than judging only canvas size.">
+</picture>
 
-`init → lock → gen` (10 covers) → `regen` a single cover → `gallery`, all offline with `--model mock`; it ends on the consistency gallery with the `size-compliant 10/10 · titles-in-safe-zone 10/10` self-proof badge.
+File inputs and local composition work offline; remote models supply only the base image. Use models and rules to inspect available routes. Gallery reads recorded title bounds from composition rather than judging only canvas size.
 
-<h2><img src="https://api.iconify.design/tabler:layout-grid.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Why CoverLock</h2>
 
-- **The account-level style-pack is a new primitive** — not a stateless "one-shot prompt → image" (every cover drifts), but a hash-lockable, cross-post-reusable, shareable YAML asset. Taste stops being an abstract instruction and becomes a lockable file.
-- **Always size-compliant** — after the model renders, PIL forces a resize / crop to exactly 4:5 or 3:4; changing platform sizes means editing one YAML.
-- **Title always in the safe-zone** — the title is placed only inside the `rules`-defined safe-zone rectangle, auto shrinking / wrapping on overflow — never clipped, never over the platform's own overlays.
-- **Pluggable, offline-capable models** — the offline layer depends on no single model; `mock` runs the full path with zero key, real images come from your own Doubao / Qwen key.
-- **In-the-loop control** — `regen` can "keep the whole style, redraw just this one," which template tools can't.
-- **Self-proof at a glance** — a consistency gallery of 10 covers from one locked pack, with per-cover compliance badges and a footer self-proof, is the strongest screenshot hook.
 
-<h2><img src="https://api.iconify.design/tabler:adjustments.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Configuration</h2>
+## Configuration
 
-Platform geometry is the single source of truth, in `assets/rules/xiaohongshu.yaml` — change sizes / safe-zones there, touch no Python:
+Rules define 1080×1350 for 4:5 and 1080×1440 for 3:4, with title safe zones. --size selects dimensions and --out selects the output directory. The pack locks model, prompt scaffold, palette and layout. Optional remote backends need API credentials. Oversized titles can fail safe-zone checks, which the CLI and gallery report.
 
-| Size | Canvas (px) | Safe-zone (x, y, w, h) |
-|---|---|---|
-| `4:5` | 1080 × 1350 | 96, 132, 888, 900 |
-| `3:4` | 1080 × 1440 | 96, 140, 888, 980 |
+## Roadmap and scope
 
-The origin is the top-left of the canvas. The safe-zone is the rectangle the title must stay fully inside; it is inset from the canvas edges to clear the platform's top status bar, bottom action rail, and side gutters.
+The local CLI, locking, single-cover regeneration, three backend routes and gallery are implemented. More platforms, typography controls and hosted collaboration remain future directions; automatic posting and hosted plans are not available.
 
-<h2><img src="https://api.iconify.design/tabler:coin.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Pricing</h2>
+- Mock visuals are offline fixtures, not evidence of Doubao or Qwen image quality.
+- Safe-zone checks follow repository rules; they do not guarantee platform acceptance or fit for every title.
+- The tool does not publish content automatically or provide a live hosted plan.
 
-CoverLock itself is **OSS + bring-your-own-key, free forever** — keeping the tool open and offline-runnable is the basis for stars and trust.
+## License
 
-A **hosted layer** for Xiaohongshu agencies / MCNs (planned, v0.2+): they manage dozens of accounts, render covers in bulk daily, and mostly don't want to configure a model key per account or run a CLI locally. The hosted layer upgrades "bring your own key, run locally" into — upload a batch of titles → the cloud renders a compliant set with the platform's domestic-model quota → the account's locked style-pack is stored in the cloud, with multi-account, multi-seat, shared-pack collaboration.
-
-| Tier | For | Price (educated guess, not live) |
-|---|---|---|
-| **OSS** | Individual creators, bring your own key | Free · open source forever |
-| **Hosted render + cloud style-pack** | Small brands / single-account agencies | from ¥99/mo (N packs + M covers/mo) |
-| **Team** | MCNs / multi-account agencies | ¥499/mo (multi-seat + multi-account pack library), overage ¥0.3–0.5/cover |
-
-> v0.1 ships no paywall — this only marks the direction. The hosted layer will launch after real agency demand is confirmed.
-
-<h2><img src="https://api.iconify.design/tabler:map-2.svg?color=%230071E3&width=24" height="22" align="absmiddle" alt=""> Roadmap</h2>
-
-- [x] **v0.1** — size-compliant cover render · style-pack lock + single-cover regen · 10-cover consistency gallery · `mock` / Doubao / Qwen models
-- [ ] More platform rule tables (vertical surfaces beyond Xiaohongshu)
-- [ ] Font subsetting and custom title fonts
-- [ ] Ship as an installable Skill in the codex / claude-skill ecosystem
-- [ ] Hosted render + cloud style-pack storage (paid tier for agencies / MCNs)
-
-## Out of scope
-
-Auto-posting / publishing to any platform · scraping Xiaohongshu or others' content · ad-buying / follower-growth / traffic ops · multi-platform aggregation · training / fine-tuning image models · video covers. CoverLock only touches your own cover files.
-
-<p align="center"><sub><a href="./LICENSE">Apache-2.0</a> © 2026 SuperMarioYL</sub></p>
+[Apache-2.0](LICENSE)

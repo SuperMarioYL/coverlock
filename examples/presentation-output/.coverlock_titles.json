@@ -1,0 +1,41 @@
+{
+  "pack_id": "presentation",
+  "pack_path": "examples/presentation-pack.yaml",
+  "locked_sha": "f3dab7a4a2c7cc0cdb3aad0575d091dd5a2c061621497f26e44876c966a8b4a6",
+  "platform": "xiaohongshu",
+  "size_name": "4:5",
+  "titles": [
+    "A calmer morning",
+    "Read something new",
+    "Make room for ideas"
+  ],
+  "compliance": [
+    {
+      "title_in_safe_zone": true,
+      "title_bbox": [
+        189,
+        156,
+        702,
+        107
+      ]
+    },
+    {
+      "title_in_safe_zone": true,
+      "title_bbox": [
+        214,
+        156,
+        651,
+        227
+      ]
+    },
+    {
+      "title_in_safe_zone": true,
+      "title_bbox": [
+        137,
+        156,
+        806,
+        107
+      ]
+    }
+  ]
+}

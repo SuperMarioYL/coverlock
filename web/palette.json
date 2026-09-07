@@ -1,0 +1,38 @@
+{
+  "mode": "auto",
+  "id": "e6e656-a4e76a-f6dbac-487e6f3e2a2b",
+  "identity": "https://github.com/supermarioyl/coverlock",
+  "primary": "#e6e656",
+  "secondary": "#a4e76a",
+  "highlight": "#f6dbac",
+  "dark": {
+    "bg": "#0a0c0d",
+    "panel": "#131717",
+    "code": "#141713",
+    "ink": "#fdf8ee",
+    "muted": "#b2b9a8",
+    "line": "#3a3c1d",
+    "primary": "#e6e656",
+    "secondary": "#a4e76a",
+    "highlight": "#f6dbac",
+    "accent": "#e6e656",
+    "buttonStart": "#7a7a2e",
+    "buttonEnd": "#5c813b",
+    "buttonText": "#ffffff"
+  },
+  "light": {
+    "bg": "#fefef9",
+    "panel": "#fefef7",
+    "code": "#fdfdf3",
+    "ink": "#272a1c",
+    "muted": "#6f7768",
+    "line": "#f7f7cb",
+    "primary": "#78782d",
+    "secondary": "#5b7f3b",
+    "highlight": "#82735b",
+    "accent": "#78782d",
+    "buttonStart": "#7a7a2e",
+    "buttonEnd": "#5c813b",
+    "buttonText": "#ffffff"
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "name": "CoverLock",
+  "tagline": "Reuse a locked style pack across a cover set.",
+  "architecture": {
+    "title": "Style pack to composed covers and gallery",
+    "nodes": [
+      {
+        "title": "Style pack",
+        "detail": "YAML + locked_sha"
+      },
+      {
+        "title": "Image adapter",
+        "detail": "mock / Doubao / Qwen"
+      },
+      {
+        "title": "Local composition",
+        "detail": "Rules, text and canvas"
+      },
+      {
+        "title": "Cover sidecar",
+        "detail": "Titles + compliance bounds"
+      },
+      {
+        "title": "Gallery",
+        "detail": "Audit and contact sheet"
+      }
+    ],
+    "edges": [
+      [
+        0,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        4
+      ]
+    ]
+  },
+  "process": {
+    "title": "Render the three-cover offline example",
+    "steps": [
+      {
+        "title": "Lock pack",
+        "detail": "Freeze the shipped demo settings"
+      },
+      {
+        "title": "Generate set",
+        "detail": "3 mock covers at 1080x1350"
+      },
+      {
+        "title": "Revise one",
+        "detail": "Regenerate cover 02"
+      },
+      {
+        "title": "Inspect gallery",
+        "detail": "3/3 size and title checks"
+      }
+    ],
+    "result": "The three mock covers pass the local size and safe-zone checks."
+  },
+  "integrations": {
+    "title": "Inputs and supported image routes",
+    "items": [
+      {
+        "title": "YAML style pack",
+        "detail": "Reusable locked configuration"
+      },
+      {
+        "title": "Title text file",
+        "detail": "One title per line"
+      },
+      {
+        "title": "Mock backend",
+        "detail": "Deterministic offline visuals"
+      },
+      {
+        "title": "Doubao / Qwen",
+        "detail": "Optional image APIs"
+      },
+      {
+        "title": "PNG + sidecar",
+        "detail": "Local covers and provenance"
+      },
+      {
+        "title": "Gallery PNG",
+        "detail": "Composition check summary"
+      }
+    ]
+  }
+}
