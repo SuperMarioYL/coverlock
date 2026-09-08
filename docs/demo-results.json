@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "scope": "Three-cover locked-pack demo using the shipped deterministic mock backend. Verifies local composition and gallery behavior, not remote image quality or platform acceptance.",
   "inputs": [
     {
@@ -32,5 +32,6 @@
       "output": "gallery → examples/presentation-output/gallery.png\nsize-compliant 3/3 · titles-in-safe-zone 3/3\n",
       "exit_code": 0
     }
-  ]
+  ],
+  "source_revision": "f30bf91c38ad4611a097b28baafe6fedd81c7915"
 }
