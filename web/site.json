@@ -104,6 +104,10 @@
           "alt": {
             "zh": "实际运行 3 张封面的离线 mock 流程，验证锁定、合成、单张重绘和 gallery。3/3 是本次输入的本地几何检查结果，不证明模型画质或平台审核通过。",
             "en": "The real three-cover offline mock run exercises locking, composition, one-cover regeneration and gallery creation. The 3/3 result is a local geometry check for these inputs, not model-quality or platform-acceptance evidence."
+          },
+          "mobile": {
+            "light": "/assets/presentation/process-mobile-light.svg",
+            "dark": "/assets/presentation/process-mobile-dark.svg"
           }
         }
       },
@@ -122,6 +126,10 @@
           "alt": {
             "zh": "stylepack.py 管理 YAML 和锁定摘要；模型 adapter 生成无文字底图；compose.py 按 rules.py 的尺寸与安全区排标题；gallery.py 读取实际合成时的合规记录拼图。模型能力与本地排版检查是不同环节。",
             "en": "stylepack.py owns YAML and lock hashes. Model adapters create text-free visuals; compose.py places titles using dimensions and safe zones from rules.py. gallery.py builds a contact sheet from recorded compose-time checks. Model quality and local layout checks are separate concerns."
+          },
+          "mobile": {
+            "light": "/assets/presentation/architecture-mobile-light.svg",
+            "dark": "/assets/presentation/architecture-mobile-dark.svg"
           }
         }
       },
@@ -140,6 +148,10 @@
           "alt": {
             "zh": "文件输入和本地合成层可离线使用，远程模型只负责底图。用 models、rules 查看当前 backend 与几何规则；gallery 读取合成时记录的标题边界，而不是仅看固定尺寸。",
             "en": "File inputs and local composition work offline; remote models supply only the base image. Use models and rules to inspect available routes. Gallery reads recorded title bounds from composition rather than judging only canvas size."
+          },
+          "mobile": {
+            "light": "/assets/presentation/integrations-mobile-light.svg",
+            "dark": "/assets/presentation/integrations-mobile-dark.svg"
           }
         }
       }
