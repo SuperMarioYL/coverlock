@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-24
+
+### Fixed
+
+- **`regen` refuses to inject a pack into a packless set** — the v0.6.0
+  packless `gen` path writes a sidecar with null pack provenance
+  (`pack_id`/`locked_sha` both null), and `regen_one`'s re-lock guard was
+  skipped for a null set sha, so `coverlock regen --pack <any locked pack>`
+  against a `gen --model mock` set rendered one cover in the pack's style
+  inside the mock set (a mixed set) and rewrote the sidecar's provenance to
+  the pack — falsely claiming the whole packless set originated from it. Regen
+  now refuses when the sidecar explicitly records null pack provenance and
+  points to `coverlock gen --pack` for evolving a set into a pack's style.
+  This closes the provenance axis of the mixing family v0.5.0 (re-locked
+  pack) and v0.6.0 (foreign size) already closed.
+- **`gallery --pack` verifies the set's recorded provenance** — `build_gallery`
+  loaded and `verify_lock`ed the passed pack without ever comparing it to the
+  sidecar's recorded origin, so a different locked pack self-proved a set it
+  never generated (`all_compliant=True` for another pack's covers). The
+  gallery now refuses a pack whose `locked_sha` (or, for sidecars without one,
+  `pack_id`) does not match the set's recorded provenance, and refuses to
+  anchor a packless set to any pack — while a matching pack and
+  `gallery` without `--pack` behave exactly as before.
+- **`coverlock regen` surfaces render failures cleanly** — the CLI regen
+  handler caught only `StylePackError`, so an empty `--title` (raising
+  `ComposeError`) or a failing provider (raising `ModelError`) crashed with a
+  raw traceback while the sibling pack path translates the same failures into
+  a clean usage error. The handler now mirrors that `except Exception`
+  translation, so the failure is `Error: …` + exit 2, and the set on disk is
+  untouched.
+
 ## [0.6.0] - 2026-09-08
 
 ### Fixed
