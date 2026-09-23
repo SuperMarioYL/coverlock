@@ -506,3 +506,50 @@ def test_regen_keeps_set_size_when_size_name_omitted(tmp_path):
     assert changed == ["cover_02.png"], f"regen touched more than one cover: {changed}"
     # The set's declared size is unchanged.
     assert sp.read_sidecar(out)["size_name"] == "4:5"
+
+
+# --------------------------------------------------------------------------- #
+# regen refuses a locked pack on a PACKLESS set's null-provenance sidecar (v0.7.0)
+# --------------------------------------------------------------------------- #
+def test_regen_refuses_packless_set(tmp_path):
+    """Regression for fix-regen-into-packless-set.
+
+    The v0.6.0 packless ``gen`` path writes a sidecar with NULL pack
+    provenance (``pack_id: null``, ``locked_sha: null``). ``regen_one``'s
+    re-lock guard (``if set_sha and pack.locked_sha and ...``) is skipped for
+    a null ``set_sha``, so ``regen --pack <any locked pack>`` against a
+    packless ``gen --model mock`` set used to PROCEED: one cover was
+    re-rendered in the pack's style inside the mock set (a mixed set) and
+    ``_write_sidecar`` rewrote the sidecar's provenance to the pack — falsely
+    claiming the whole packless set originated from it. Now regen raises
+    ``StylePackError`` when the sidecar explicitly records both keys as null
+    (the v0.6.0 packless writer's marker), no cover file on disk changes, and
+    the sidecar keeps its null provenance.
+    """
+    from typer.testing import CliRunner
+
+    from coverlock.cli import app
+
+    titles = tmp_path / "t.txt"
+    titles.write_text("一\n二\n三\n", encoding="utf-8")
+    out = tmp_path / "out"
+    runner = CliRunner()
+    res = runner.invoke(
+        app, ["gen", "--model", "mock", "--titles", str(titles), "--out", str(out)]
+    )
+    assert res.exit_code == 0, res.output
+    side = sp.read_sidecar(out)
+    assert side["pack_id"] is None
+    assert side["locked_sha"] is None
+
+    path = _mock_locked_pack(tmp_path)
+    before = {p.name: _sha_file(p) for p in sorted(out.glob("cover_*.png"))}
+    with pytest.raises(StylePackError):
+        regen_one(path, index=2, title="新", out_dir=out)
+    after = {p.name: _sha_file(p) for p in sorted(out.glob("cover_*.png"))}
+    # No cover file changed: regen refused before rendering.
+    assert before == after
+    # The sidecar's pack provenance is NOT falsified to the passed pack.
+    side2 = sp.read_sidecar(out)
+    assert side2["pack_id"] is None
+    assert side2["locked_sha"] is None

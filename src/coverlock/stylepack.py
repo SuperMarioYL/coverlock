@@ -643,7 +643,10 @@ def regen_one(
     Raises:
         LockError: if the pack is unlocked, has been edited since lock, or was
             re-locked after this set was generated (so regen would mix styles).
-        StylePackError: if there is no generated set, or ``index`` is out of range.
+        StylePackError: if there is no generated set, ``index`` is out of
+            range, the set was generated packless (regen with a pack would mix
+            styles), or the caller passed a ``size_name`` that differs from the
+            set's recorded size (so regen would mix sizes).
     """
     pack = load_pack(pack_path)
     verify_lock(pack)
@@ -667,6 +670,30 @@ def regen_one(
             f"(set origin sha {str(set_sha)[:12]}… vs current {pack.locked_sha[:12]}…); "
             f"regen would mix styles — re-run `coverlock gen` to regenerate the "
             f"whole set in the new style"
+        )
+
+    # The v0.6.0 packless `gen` path writes a sidecar with NULL pack provenance
+    # (pack_id/locked_sha both None). regen always renders with a locked pack,
+    # so regenerating one cover into such a set would render it in the pack's
+    # style while every other cover keeps the packless (e.g. mock) style — a
+    # mixed set — and _write_sidecar below would then rewrite the sidecar's
+    # provenance to this pack, falsely claiming the whole packless set
+    # originated from it. Refuse so the user re-runs `coverlock gen --pack` to
+    # regenerate the whole set from the pack. This is the provenance axis of
+    # the same mixing family the re-lock guard above (locked_sha axis) and the
+    # size guard below (size axis) close. Guarded on the sidecar EXPLICITLY
+    # recording both keys as null (the v0.6.0 packless writer's marker), so a
+    # legacy/foreign sidecar without the keys still falls through — the same
+    # tolerance pattern as those guards.
+    if (
+        "pack_id" in side and side.get("pack_id") is None
+        and "locked_sha" in side and side.get("locked_sha") is None
+    ):
+        raise StylePackError(
+            f"cover set in {out} was generated without a style-pack (packless "
+            f"gen); regen with pack {pack.id!r} would mix styles (one "
+            f"pack-styled cover in a packless set) — re-run `coverlock gen "
+            f"--pack` to regenerate the whole set from the pack"
         )
 
     # The sidecar records the single size_name the set was generated at. A cover
