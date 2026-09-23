@@ -301,6 +301,55 @@ def _draw_badge(
     return w
 
 
+def _verify_set_provenance(
+    pack: "_sp.StylePack",
+    side: "dict[str, Any]",
+    covers_dir: Path,
+) -> None:
+    """Raise ``StylePackError`` when ``pack`` did not generate the set in ``side``.
+
+    ``verify_lock`` only proves the PASSED pack is locked and unedited — it says
+    nothing about the set on disk. Without comparing the pack to the sidecar's
+    recorded provenance, a DIFFERENT locked pack could anchor (and self-prove)
+    a set it never generated. Same guard pattern as ``regen_one``'s provenance
+    checks: only refuse on fields the sidecar actually records, so matching
+    sets and legacy/foreign sidecars without the keys still pass.
+
+    * locked_sha recorded → must equal the pack's current ``locked_sha`` (a
+      mismatch means another pack, or an earlier lock of this one).
+    * else pack_id recorded → must equal the pack's ``id`` (unlocked-gen /
+      legacy sidecars record the id but no sha).
+    * else (both keys null — the packless ``gen`` marker) → the set has no pack
+      provenance at all and cannot be anchored to any ``--pack``.
+    """
+    set_sha = side.get("locked_sha")
+    if set_sha:
+        if str(set_sha) != str(pack.locked_sha):
+            raise _sp.StylePackError(
+                f"cover set in {covers_dir} was generated from lock "
+                f"{str(set_sha)[:12]}… but pack {pack.id!r} is at lock "
+                f"{str(pack.locked_sha)[:12]}… (a different pack, or this pack "
+                f"was re-locked after gen) — re-run `coverlock gen` to "
+                f"regenerate the set in the current style, or run `coverlock "
+                f"gallery` without --pack"
+            )
+        return
+    set_pack_id = side.get("pack_id")
+    if set_pack_id:
+        if str(set_pack_id) != pack.id:
+            raise _sp.StylePackError(
+                f"cover set in {covers_dir} was generated from pack "
+                f"{set_pack_id!r}, not {pack.id!r}; run `coverlock gallery` "
+                f"with the set's own pack or without --pack"
+            )
+        return
+    raise _sp.StylePackError(
+        f"cover set in {covers_dir} was generated without a style-pack "
+        f"(packless gen); `gallery --pack` cannot anchor it to pack "
+        f"{pack.id!r} — run `coverlock gallery` without --pack"
+    )
+
+
 def build_gallery(
     pack_path: Optional[str | Path] = None,
     covers_dir: str | Path = "out",
@@ -345,6 +394,14 @@ def build_gallery(
     if pack_path is not None:
         pack = _sp.load_pack(pack_path)
         _sp.verify_lock(pack)  # a gallery must self-prove it came from a locked pack
+        # The set must actually have come from THIS pack. verify_lock above only
+        # proves the passed pack is locked and unedited; without comparing it to
+        # the sidecar's recorded provenance, a DIFFERENT locked pack used to
+        # self-prove a set it never generated — the per-cover verdicts were
+        # individually real, but the artifact's "one locked pack" claim was
+        # false. Guarded on what the sidecar actually records (see the helper).
+        if side is not None:
+            _verify_set_provenance(pack, side, covers_dir)
         platform = pack.platform
 
     rules = load_platform_rules_cached(platform)

@@ -398,3 +398,75 @@ def test_gallery_verdict_invalidated_by_size_swap(rendered_set):
     assert report.safe_zone_count == 9
     assert report.size_compliant_count == 10
     assert report.all_compliant is False
+
+
+# --------------------------------------------------------------------------- #
+# gallery --pack verifies the set's recorded provenance (v0.7.0)
+# --------------------------------------------------------------------------- #
+def test_gallery_refuses_mismatched_pack(tmp_path):
+    """Regression for fix-gallery-pack-provenance-unchecked.
+
+    ``build_gallery`` used to load and ``verify_lock`` the PASSED pack without
+    ever comparing it to the sidecar's recorded provenance, so a DIFFERENT
+    locked pack self-proved a set it never generated
+    (``all_compliant=True`` for another pack's covers). Now ``build_gallery``
+    raises ``StylePackError`` when the passed pack's ``locked_sha`` (or, for
+    sidecars without one, ``pack_id``) does not match the set's recorded
+    origin — and a packless set (null provenance sidecar) refuses any
+    ``--pack``. A matching pack still builds, and ``gallery`` without
+    ``--pack`` is unaffected.
+    """
+    import yaml
+    from typer.testing import CliRunner
+
+    from coverlock.cli import app
+
+    path_a = _locked_mock_pack(tmp_path)
+    pack_a = sp.load_pack(path_a)
+    out = tmp_path / "out"
+    sp.render_set(pack_a, ["一", "二", "三"], out)
+
+    # A second locked pack with a genuinely different style => different sha.
+    path_b = tmp_path / "gal-b.yaml"
+    path_b.write_text(
+        yaml.safe_dump(
+            {
+                "id": "gal-b",
+                "model": {"target": "mock"},
+                "prompt_scaffold": {
+                    "system": "另一种截然不同的风格",
+                    "per_cover_template": "{topic} 主视觉，{palette_hint}，不含文字",
+                },
+                "palette": ["#101010", "#202020", "#303030"],
+                "layout": {},
+                "platform": "xiaohongshu",
+            },
+            allow_unicode=True,
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+    sp.lock_pack(path_b)
+    assert sp.load_pack(path_b).locked_sha != pack_a.locked_sha
+
+    # The wrong pack must NOT self-prove the set it never generated.
+    with pytest.raises(sp.StylePackError):
+        build_gallery(pack_path=path_b, covers_dir=out)
+    # The matching pack still self-proves the set.
+    report = build_gallery(pack_path=path_a, covers_dir=out)
+    assert report.all_compliant
+    # And `gallery` without --pack is unaffected.
+    assert build_gallery(covers_dir=out).all_compliant
+
+    # A packless set (null provenance sidecar) refuses any --pack.
+    titles = tmp_path / "t.txt"
+    titles.write_text("甲\n乙\n", encoding="utf-8")
+    out2 = tmp_path / "out2"
+    runner = CliRunner()
+    res = runner.invoke(
+        app, ["gen", "--model", "mock", "--titles", str(titles), "--out", str(out2)]
+    )
+    assert res.exit_code == 0, res.output
+    with pytest.raises(sp.StylePackError):
+        build_gallery(pack_path=path_a, covers_dir=out2)
+    assert build_gallery(covers_dir=out2).all_compliant
