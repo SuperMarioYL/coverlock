@@ -295,7 +295,10 @@ def regen(
 
     try:
         dest = stylepack.regen_one(pack_path=pack, index=index, title=title, out_dir=out)
-    except stylepack.StylePackError as exc:
+    except Exception as exc:  # StylePackError/LockError, ComposeError, ModelError, …
+        # Mirror _gen_from_pack's translation: a render failure (an empty
+        # --title raising ComposeError, a failing provider raising ModelError)
+        # is a usage error with a clean message, never a raw traceback.
         raise typer.BadParameter(str(exc))
     typer.echo(f"regenerated cover {index:02d} → {dest} (same locked pack; other covers untouched)")
 

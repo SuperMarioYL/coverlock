@@ -184,3 +184,47 @@ def test_packless_gallery_reports_honest_footer_via_cli(tmp_path):
     assert gal.exit_code == 0, gal.output
     assert "size-compliant 3/3" in gal.output
     assert "titles-in-safe-zone 3/3" in gal.output
+
+
+# --------------------------------------------------------------------------- #
+# regen CLI surfaces render failures cleanly, not raw tracebacks (v0.7.0)
+# --------------------------------------------------------------------------- #
+def test_regen_cli_clean_error_on_empty_title(tmp_path):
+    """Regression for fix-regen-cli-raw-traceback.
+
+    The regen handler caught only ``StylePackError``, so an empty ``--title``
+    made ``layout_title`` raise ``ComposeError`` (a plain ``ValueError``) — an
+    uncaught raw traceback in the terminal — while the sibling pack path
+    (``_gen_from_pack``) translates the same class of failure (ComposeError,
+    ModelError) into a clean ``typer.BadParameter``. The regen handler now
+    mirrors that ``except Exception`` translation, so a render failure is a
+    usage error (exit 2, ``Error: …``), never a stack trace, and the set on
+    disk is untouched.
+    """
+    from typer.testing import CliRunner
+
+    from coverlock.compose import ComposeError
+
+    path = _locked_mock_pack(tmp_path)
+    titles = tmp_path / "t.txt"
+    titles.write_text("一\n二\n", encoding="utf-8")
+    out = tmp_path / "out"
+    runner = CliRunner()
+    g = runner.invoke(
+        cli_mod.app,
+        ["gen", "--pack", str(path), "--titles", str(titles), "--out", str(out)],
+    )
+    assert g.exit_code == 0, g.output
+
+    before = {p.name: p.read_bytes() for p in sorted(out.glob("cover_*.png"))}
+    res = runner.invoke(
+        cli_mod.app,
+        ["regen", "--pack", str(path), "--index", "1", "--title", "", "--out", str(out)],
+    )
+    # A clean usage error (typer BadParameter → exit 2), not a raw crash.
+    assert res.exit_code == 2
+    assert not isinstance(res.exception, ComposeError)
+    assert "Error" in res.output
+    # The set on disk is untouched by the failed regen.
+    after = {p.name: p.read_bytes() for p in sorted(out.glob("cover_*.png"))}
+    assert before == after
